@@ -1,16 +1,15 @@
 <script lang="ts">
 	import { Group, Stack, Text, UnstyledButton } from '@svelteuidev/core';
-	import type { editor } from 'monaco-editor';
 	import FileElement from './FileElement.svelte';
 
 	export let dir: Directory;
-	export let getModel: (name: string) => editor.IModel;
-	export let setModel: (model: editor.IModel) => void;
+	export let getModel: (name: string) => FileModel;
+	export let setModel: (model: FileModel) => void;
 
 	let open: boolean = true;
 </script>
 
-<Stack spacing={4} justify="start" override={{ maxHeight: open ? 'unset' : 24, overflow: 'hidden' }}>
+<Stack spacing={0} justify="start" override={{ maxHeight: open ? 'unset' : 24, overflow: 'hidden' }}>
 	<UnstyledButton on:click={() => (open = !open)}>
 		<Group
 			noWrap

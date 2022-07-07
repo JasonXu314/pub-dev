@@ -14,6 +14,7 @@
 	"devDependencies": {
 		"@sveltejs/adapter-auto": "next",
 		"@sveltejs/kit": "next",
+		"@types/js-cookie": "^3.0.2",
 		"@typescript-eslint/eslint-plugin": "^5.27.0",
 		"@typescript-eslint/parser": "^5.27.0",
 		"eslint": "^8.16.0",
@@ -29,6 +30,7 @@
 		"@svelteuidev/composables": "^0.6.8-next.4",
 		"@svelteuidev/core": "^0.6.8-next.4",
 		"axios": "^0.27.2",
+		"js-cookie": "^3.0.1",
 		"monaco-editor": "^0.33.0"
 	}
 }

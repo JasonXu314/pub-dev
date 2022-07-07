@@ -1,13 +1,12 @@
 <script lang="ts">
 	import { currentModel } from '$lib/stores';
 	import { Group, Text, UnstyledButton } from '@svelteuidev/core';
-	import type { editor } from 'monaco-editor';
 	import { createEventDispatcher } from 'svelte';
 
 	export let file: string;
-	export let model: editor.IModel;
+	export let model: FileModel;
 
-	const dispatch = createEventDispatcher<{ click: editor.IModel }>();
+	const dispatch = createEventDispatcher<{ click: FileModel }>();
 </script>
 
 <UnstyledButton on:click={() => dispatch('click', model)}>
@@ -25,9 +24,9 @@
 			background: $currentModel === model ? '$dark500' : undefined
 		}}
 	>
-		{#if model.getLanguageId() === 'html'}
+		{#if model.model.getLanguageId() === 'html'}
 			<img class="icon" src="https://raw.githubusercontent.com/PKief/vscode-material-icon-theme/main/icons/html.svg" alt="" />
-		{:else if model.getLanguageId() === 'javascript'}
+		{:else if model.model.getLanguageId() === 'javascript'}
 			<img class="icon" src="https://raw.githubusercontent.com/PKief/vscode-material-icon-theme/main/icons/javascript.svg" alt="" />
 		{/if}
 		<Text>

@@ -1,11 +1,13 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import DirectoryElement from '$lib/components/DirectoryElement.svelte';
+	import EditorTab from '$lib/components/EditorTab.svelte';
 	import FileElement from '$lib/components/FileElement.svelte';
 	import { BACKEND_URL } from '$lib/env';
 	import { currentModel } from '$lib/stores';
-	import { AppShell, Button, Container, Loader, Seo, Stack, Text, TextInput } from '@svelteuidev/core';
+	import { AppShell, Button, Container, Group, Loader, Seo, Stack, Text, TextInput } from '@svelteuidev/core';
 	import axios, { AxiosError } from 'axios';
+	import Cookies from 'js-cookie';
 	import type { editor } from 'monaco-editor';
 	import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
 	import CSSWorker from 'monaco-editor/esm/vs/language/css/css.worker?worker';
@@ -32,10 +34,17 @@
 	let token: string = '';
 	let workspaceDirectory: Directory | null = null;
 	let message: string | null = null;
+	let tabModels: FileModel[] = [];
 
-	const models: Map<string, editor.IModel> = new Map();
+	const models: Map<string, FileModel> = new Map();
+
+	const SIDEBAR_WIDTH = 256 + 20 * 2;
 
 	onMount(async () => {
+		if (Cookies.get(`token:${workspaceName}`)) {
+			token = Cookies.get(`token:${workspaceName}`)!;
+		}
+
 		try {
 			const workspace = await axios.get<Workspace>(`${BACKEND_URL}/workspace/${workspaceName}`).then((res) => res.data);
 
@@ -94,7 +103,7 @@
 		tick().then(() => {
 			const shadowRoot = div!.attachShadow({ mode: 'open' });
 			const innerDiv = document.createElement('div');
-			innerDiv.style.height = '100vh';
+			innerDiv.style.height = '95vh';
 			shadowRoot.appendChild(innerDiv);
 
 			// transplant styles for monaco editor
@@ -114,17 +123,19 @@
 			});
 
 			monacoEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
-				axios
-					.patch(`${BACKEND_URL}/workspace/${workspace.name}${monacoEditor!.getModel()!.uri.path}`, {
-						token: token,
-						file: monacoEditor!.getValue()
-					})
-					.then(() => {
-						message = 'Saved!';
-					})
-					.catch((e) => {
-						console.log(e);
-					});
+				if ($currentModel) {
+					axios
+						.patch(`${BACKEND_URL}/workspace/${workspace.name}/${$currentModel.path}`, {
+							token: token,
+							file: monacoEditor!.getValue()
+						})
+						.then(() => {
+							message = 'Saved!';
+						})
+						.catch((e) => {
+							console.log(e);
+						});
+				}
 			});
 		});
 	}
@@ -162,9 +173,9 @@
 					.get<string>(`${BACKEND_URL}/workspace/${workspace.name}/${path}?token=${workspace.token}`)
 					.then((res) => res.data);
 
-				const model = monaco.editor.createModel(contents, undefined, monaco.Uri.file(file));
+				const model = monaco.editor.createModel(contents, undefined, monaco.Uri.file(path));
 
-				models.set(path, model);
+				models.set(path, { model, path });
 			})
 		);
 
@@ -175,23 +186,71 @@
 		);
 	}
 
-	function setModel(model: editor.IModel) {
+	function setModel(model: FileModel | null) {
 		if (monacoEditor) {
-			monacoEditor.setModel(model);
-			currentModel.set(model);
+			if (model) {
+				monacoEditor.setModel(model.model);
+				currentModel.set(model);
+
+				if (!tabModels.includes(model)) {
+					tabModels = [...tabModels, model];
+				}
+			} else {
+				monacoEditor.setModel(null);
+				currentModel.set(null);
+			}
 		} else {
 			console.trace('Tried to set model without editor built');
 		}
 	}
 
-	function getModel(fileName: string): editor.IModel {
+	function getModel(fileName: string): FileModel {
 		return models.get(fileName)!;
+	}
+
+	function getCurrentFileViewPath(): string {
+		const path = $currentModel?.path;
+
+		if (!path) {
+			return '';
+		}
+
+		if (path.startsWith('routes/')) {
+			return path.replace('routes/', '').split('.').slice(0, -1).join('.');
+		} else {
+			return path.replace('public/', '');
+		}
+	}
+
+	function getModelDisplayName(model: FileModel): string {
+		return model.path.split('/').at(-1)!;
+	}
+
+	function closeTab(model: FileModel): void {
+		if ($currentModel === model) {
+			setModel(null);
+		}
+
+		tabModels = tabModels.filter((m) => m !== model);
 	}
 </script>
 
 <Seo title={`${workspaceName} Workspace | PubDev`} />
 <AppShell override={{ main: { paddingLeft: '0 !important', paddingBottom: '0 !important', paddingTop: '0 !important' } }}>
-	<Stack justify="start" spacing={4} override={{ width: 256 + 20 * 2, paddingTop: '$lgPX' }} slot="navbar">
+	<Group justify="start" spacing={0} slot="header" override={state === State.WORKING ? { height: '5vh', paddingLeft: '$mdPX' } : undefined}>
+		{#if state === State.WORKING}
+			<Group override={{ width: SIDEBAR_WIDTH }}>
+				<Button on:click={() => navigator.clipboard.writeText(token)}>Copy Token</Button>
+				<Button href={`${BACKEND_URL}/${workspaceName}/${getCurrentFileViewPath()}`} external disabled={!$currentModel}>Visit Page</Button>
+			</Group>
+			<Group spacing={0}>
+				{#each tabModels as model}
+					<EditorTab fileName={getModelDisplayName(model)} on:click={() => setModel(model)} on:close={() => closeTab(model)} />
+				{/each}
+			</Group>
+		{/if}
+	</Group>
+	<Stack justify="start" spacing={0} override={{ width: SIDEBAR_WIDTH }} slot="navbar">
 		{#if state === State.WORKING}
 			{#if workspaceDirectory !== null && workspaceDirectory.dirs.length > 0}
 				{#each workspaceDirectory.dirs as dir}
@@ -236,6 +295,6 @@
 
 <style>
 	#container {
-		height: 100vh;
+		height: 95vh;
 	}
 </style>

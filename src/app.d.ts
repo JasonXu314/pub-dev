@@ -10,3 +10,8 @@ type Directory = {
 	files: string[];
 	dirs: Directory[];
 };
+
+type FileModel = {
+	path: string;
+	model: import('monaco-editor').editor.IModel;
+};
