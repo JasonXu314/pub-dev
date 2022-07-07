@@ -241,9 +241,13 @@
 		{#if state === State.WORKING}
 			<Group override={{ width: SIDEBAR_WIDTH }}>
 				<Button on:click={() => navigator.clipboard.writeText(token)}>Copy Token</Button>
-				<Button href={`${BACKEND_URL}/${workspaceName}/${getCurrentFileViewPath()}`} external disabled={!$currentModel}>Visit Page</Button>
+				<Button
+					href={`${BACKEND_URL}/${workspaceName}/${getCurrentFileViewPath()}`}
+					external
+					disabled={!$currentModel || $currentModel.model.getLanguageId() !== 'html'}>Visit Page</Button
+				>
 			</Group>
-			<Group spacing={0}>
+			<Group spacing={8}>
 				{#each tabModels as model}
 					<EditorTab fileName={getModelDisplayName(model)} on:click={() => setModel(model)} on:close={() => closeTab(model)} />
 				{/each}

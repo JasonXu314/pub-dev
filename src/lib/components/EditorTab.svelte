@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Button, Group } from '@svelteuidev/core';
+	import { Button, Group, Text } from '@svelteuidev/core';
 	import { createEventDispatcher } from 'svelte';
 	import XIcon from './XIcon.svelte';
 
@@ -8,11 +8,23 @@
 	const dispatch = createEventDispatcher<{ close: void }>();
 </script>
 
-<Group spacing={0}>
-	<Button on:click>
+<Group
+	spacing={8}
+	override={{
+		'&:hover': {
+			background: '$dark500'
+		}
+	}}
+>
+	<Text
+		on:click
+		override={{
+			cursor: 'pointer'
+		}}
+	>
 		{fileName}
-	</Button>
-	<Button on:click={() => dispatch('close')}>
+	</Text>
+	<Button compact variant="subtle" on:click={() => dispatch('close')} override={{ padding: 0 }}>
 		<XIcon />
 	</Button>
 </Group>

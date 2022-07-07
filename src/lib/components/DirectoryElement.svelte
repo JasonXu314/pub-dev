@@ -40,7 +40,7 @@
 			</Text>
 		</Group>
 	</UnstyledButton>
-	<Stack spacing={4} justify="start" override={{ paddingLeft: 24 }}>
+	<Stack spacing={0} justify="start" override={{ paddingLeft: 24 }}>
 		{#if dir.dirs.length > 0}
 			{#each dir.dirs as dir}
 				<svelte:self {dir} {getModel} {setModel} />
