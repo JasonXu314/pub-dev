@@ -3,7 +3,7 @@
 	import DirectoryElement from '$lib/components/DirectoryElement.svelte';
 	import EditorTab from '$lib/components/EditorTab.svelte';
 	import FileElement from '$lib/components/FileElement.svelte';
-	import { BACKEND_URL } from '$lib/env';
+	import { BACKEND_URL, VIEW_URL } from '$lib/env';
 	import { currentModel } from '$lib/stores';
 	import { AppShell, Button, Container, Group, Loader, Seo, Stack, Text, TextInput } from '@svelteuidev/core';
 	import axios, { AxiosError } from 'axios';
@@ -14,6 +14,7 @@
 	import HTMLWorker from 'monaco-editor/esm/vs/language/html/html.worker?worker';
 	import JSONWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker';
 	import TSWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker';
+	import { ClipboardCopy, ExternalLink } from 'radix-icons-svelte';
 	import { onMount, tick } from 'svelte';
 
 	axios.defaults.withCredentials = true;
@@ -237,17 +238,23 @@
 
 <Seo title={`${workspaceName} Workspace | PubDev`} />
 <AppShell override={{ main: { paddingLeft: '0 !important', paddingBottom: '0 !important', paddingTop: '0 !important' } }}>
-	<Group justify="start" spacing={0} slot="header" override={state === State.WORKING ? { height: '5vh', paddingLeft: '$mdPX' } : undefined}>
+	<Group justify="start" spacing={0} slot="header" override={state === State.WORKING ? { height: '3vh' } : undefined}>
 		{#if state === State.WORKING}
-			<Group override={{ width: SIDEBAR_WIDTH }}>
-				<Button on:click={() => navigator.clipboard.writeText(token)}>Copy Token</Button>
+			<Group override={{ width: SIDEBAR_WIDTH, paddingLeft: '$mdPX' }}>
+				<Button compact on:click={() => navigator.clipboard.writeText(token)}
+					>Copy Token
+					<ClipboardCopy slot="leftIcon" />
+				</Button>
 				<Button
-					href={`${BACKEND_URL}/${workspaceName}/${getCurrentFileViewPath()}`}
+					compact
+					href={`${VIEW_URL.replace('__NAME__', workspaceName)}/${getCurrentFileViewPath()}`}
 					external
-					disabled={!$currentModel || $currentModel.model.getLanguageId() !== 'html'}>Visit Page</Button
-				>
+					disabled={!$currentModel || $currentModel.model.getLanguageId() !== 'html'}
+					>Visit Page
+					<ExternalLink slot="leftIcon" />
+				</Button>
 			</Group>
-			<Group spacing={8}>
+			<Group spacing={8} override={{ height: '100%' }}>
 				{#each tabModels as model}
 					<EditorTab fileName={getModelDisplayName(model)} on:click={() => setModel(model)} on:close={() => closeTab(model)} />
 				{/each}
@@ -299,6 +306,10 @@
 
 <style>
 	#container {
-		height: 95vh;
+		height: 97vh;
 	}
+	/* 
+	:global(*) {
+		outline: 1px solid lime !important;
+	} */
 </style>

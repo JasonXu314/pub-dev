@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Button, Group, Text } from '@svelteuidev/core';
+	import { Cross2 } from 'radix-icons-svelte';
 	import { createEventDispatcher } from 'svelte';
-	import XIcon from './XIcon.svelte';
 
 	export let fileName: string;
 
@@ -9,8 +9,10 @@
 </script>
 
 <Group
-	spacing={8}
+	spacing={0}
 	override={{
+		height: '100%',
+		cursor: 'pointer',
 		'&:hover': {
 			background: '$dark500'
 		}
@@ -19,12 +21,13 @@
 	<Text
 		on:click
 		override={{
-			cursor: 'pointer'
+			paddingLeft: '$smPX',
+			paddingRight: '$smPX'
 		}}
 	>
 		{fileName}
 	</Text>
-	<Button compact variant="subtle" on:click={() => dispatch('close')} override={{ padding: 0 }}>
-		<XIcon />
+	<Button compact variant="subtle" on:click={() => dispatch('close')} override={{ padding: 2.5, height: 'fit-content' }}>
+		<Cross2 />
 	</Button>
 </Group>
