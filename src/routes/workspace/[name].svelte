@@ -6,7 +6,7 @@
 	import { BACKEND_URL, VIEW_URL } from '$lib/env';
 	import { currentModel } from '$lib/stores';
 	import { _portal } from '$lib/utils';
-	import { AppShell, Box, Button, Container, Group, Loader, Overlay, Paper, Seo, SimpleGrid, Stack, Text, TextInput } from '@svelteuidev/core';
+	import { AppShell, Box, Button, Container, Group, Loader, Overlay, Paper, Seo, SimpleGrid, Space, Stack, Text, TextInput } from '@svelteuidev/core';
 	import axios, { AxiosError } from 'axios';
 	import Cookies from 'js-cookie';
 	import type { editor } from 'monaco-editor';
@@ -32,6 +32,11 @@
 		UPLOAD
 	}
 
+	enum CreateDirMode {
+		CREATE,
+		UPLOAD
+	}
+
 	let workspaceName = $page.params.name,
 		div: HTMLDivElement | null = null,
 		monacoEditor: editor.IStandaloneCodeEditor | null = null,
@@ -43,8 +48,12 @@
 		message: string | null = null,
 		tabModels: FileModel[] = [],
 		createFileDirectory: string | null = null,
+		createDirDirectory: string | null = null,
 		createFileMode: CreateFileMode | null = null,
-		fileOrDirName: string = '';
+		createDirMode: CreateDirMode | null = null,
+		fileOrDirName: string = '',
+		monaco: typeof import('monaco-editor') | null = null,
+		currentFileViewPath: string = '';
 
 	const models: Map<string, FileModel> = new Map();
 
@@ -101,12 +110,13 @@
 
 		const workspaceDir = await axios.get<Directory>(`${BACKEND_URL}/index-workspace/${workspace.name}?token=${workspace.token}`).then((res) => res.data);
 		workspaceDirectory = workspaceDir;
-		const monaco = await import('monaco-editor');
+		const _monaco = await import('monaco-editor');
+		monaco = _monaco;
 
-		await buildModels(monaco, workspace, workspaceDir, []);
+		await buildModels(_monaco, workspace, workspaceDir, []);
 		console.log(models);
 
-		monaco.languages.typescript.javascriptDefaults.addExtraLib(await axios.get<string>(`${BACKEND_URL}/typedefs`).then((res) => res.data));
+		_monaco.languages.typescript.javascriptDefaults.addExtraLib(await axios.get<string>(`${BACKEND_URL}/typedefs`).then((res) => res.data));
 
 		state = State.WORKING;
 
@@ -124,7 +134,7 @@
 				}
 			});
 
-			monacoEditor = monaco.editor.create(innerDiv, {
+			monacoEditor = _monaco.editor.create(innerDiv, {
 				theme: 'vs-dark',
 				model: null,
 				suggest: {
@@ -132,13 +142,14 @@
 				}
 			});
 
-			monacoEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+			monacoEditor.addCommand(_monaco.KeyMod.CtrlCmd | _monaco.KeyCode.KeyS, () => {
 				if ($currentModel) {
+					const data = new FormData();
+					data.append('token', token);
+					data.append('file', new File([monacoEditor!.getValue()], getModelDisplayName($currentModel)));
+
 					axios
-						.patch(`${BACKEND_URL}/workspace/${workspace.name}/${$currentModel.path}`, {
-							token: token,
-							file: monacoEditor!.getValue()
-						})
+						.patch(`${BACKEND_URL}/workspace/${workspace.name}/${$currentModel.path}`, data)
 						.then(() => {
 							message = 'Saved!';
 						})
@@ -175,10 +186,11 @@
 		}
 	}
 
+	// TODO: use global monaco instead of parameter
 	async function buildModels(monaco: typeof import('monaco-editor'), workspace: Workspace, directory: Directory, prevPath: string[]): Promise<void> {
 		await Promise.all(
 			directory.files.map(async (file) => {
-				const path = directory.name === workspace.name ? file : [...prevPath, directory.name, file].join('/');
+				const path = directory === workspaceDirectory ? file : [...prevPath, directory.name, file].join('/');
 				const contents = await axios
 					.get<string>(`${BACKEND_URL}/workspace/${workspace.name}/${path}?token=${workspace.token}`)
 					.then((res) => res.data);
@@ -190,9 +202,7 @@
 		);
 
 		await Promise.all(
-			directory.dirs.map((dir) =>
-				buildModels(monaco, workspace, dir, directory.name === workspace.name ? [] : prevPath.concat(...prevPath, directory.name))
-			)
+			directory.dirs.map((dir) => buildModels(monaco, workspace, dir, directory === workspaceDirectory ? [] : prevPath.concat(directory.name)))
 		);
 	}
 
@@ -215,20 +225,21 @@
 	}
 
 	function getModel(fileName: string): FileModel {
+		console.log(fileName);
 		return models.get(fileName)!;
 	}
 
-	function getCurrentFileViewPath(): string {
+	$: {
 		const path = $currentModel?.path;
 
 		if (!path) {
-			return '';
-		}
-
-		if (path.startsWith('routes/')) {
-			return path.replace('routes/', '').split('.').slice(0, -1).join('.');
+			currentFileViewPath = '';
 		} else {
-			return path.replace('public/', '');
+			if (path.startsWith('routes/')) {
+				currentFileViewPath = path.replace('routes/', '').split('.').slice(0, -1).join('.');
+			} else {
+				currentFileViewPath = path.replace('public/', '');
+			}
 		}
 	}
 
@@ -244,8 +255,64 @@
 		tabModels = tabModels.filter((m) => m !== model);
 	}
 
-	function createFile(): void {
-		console.log(`${createFileDirectory}/${fileOrDirName}`);
+	async function createFile(): Promise<void> {
+		const path = `${createFileDirectory}/${fileOrDirName}`;
+
+		try {
+			await axios.post(`${BACKEND_URL}/workspace/${workspaceName}/${path}`, { token, type: 'file' });
+
+			const contents = await axios.get<string>(`${BACKEND_URL}/workspace/${workspaceName}/${path}?token=${token}`).then((res) => res.data);
+
+			const model = monaco!.editor.createModel(contents, undefined, monaco!.Uri.file(path));
+
+			models.set(path, { model, path });
+
+			const _fileDir = { ...workspaceDirectory! };
+			let fileDir = _fileDir;
+
+			createFileDirectory!.split('/').forEach((dir) => {
+				fileDir = fileDir.dirs.find((d) => d.name === dir)!;
+			});
+
+			fileDir.files.push(fileOrDirName);
+			workspaceDirectory = _fileDir;
+
+			createFileDirectory = null;
+			fileOrDirName = '';
+			createFileMode = null;
+		} catch (e) {
+			console.log(e);
+			if (e instanceof AxiosError) {
+				message = e.response?.data.message || null;
+			}
+		}
+	}
+
+	async function createDirectory(): Promise<void> {
+		const path = `${createDirDirectory}/${fileOrDirName}`;
+
+		try {
+			await axios.post(`${BACKEND_URL}/workspace/${workspaceName}/${path}`, { token, type: 'directory' });
+
+			const _dirDir = { ...workspaceDirectory! };
+			let dirDir = _dirDir;
+
+			createDirDirectory!.split('/').forEach((dir) => {
+				dirDir = dirDir.dirs.find((d) => d.name === dir)!;
+			});
+
+			dirDir.dirs.push({ name: fileOrDirName, dirs: [], files: [] });
+			workspaceDirectory = _dirDir;
+
+			createDirDirectory = null;
+			fileOrDirName = '';
+			createDirMode = null;
+		} catch (e) {
+			console.log(e);
+			if (e instanceof AxiosError) {
+				message = e.response?.data.message || null;
+			}
+		}
 	}
 </script>
 
@@ -260,7 +327,7 @@
 				</Button>
 				<Button
 					compact
-					href={`${VIEW_URL.replace('__NAME__', workspaceName)}/${getCurrentFileViewPath()}`}
+					href={`${VIEW_URL.replace('__NAME__', workspaceName)}/${currentFileViewPath}`}
 					external
 					disabled={!$currentModel || $currentModel.model.getLanguageId() !== 'html'}
 					>Visit Page
@@ -277,13 +344,14 @@
 	<Stack justify="start" spacing={0} override={{ width: SIDEBAR_WIDTH }} slot="navbar">
 		{#if state === State.WORKING}
 			{#if workspaceDirectory !== null && workspaceDirectory.dirs.length > 0}
-				{#each workspaceDirectory.dirs as dir}
+				{#each workspaceDirectory.dirs as directory}
 					<DirectoryElement
-						{dir}
+						{directory}
+						prevPath=""
 						{getModel}
 						{setModel}
 						on:create-file={(evt) => (createFileDirectory = evt.detail)}
-						on:create-dir={(evt) => console.log(evt.detail)}
+						on:create-dir={(evt) => (createDirDirectory = evt.detail)}
 					/>
 				{/each}
 			{/if}
@@ -336,9 +404,32 @@
 						</SimpleGrid>
 					{:else if createFileMode === CreateFileMode.CREATE}
 						<TextInput placeholder="File Name" required autocomplete="off" label="File Name" bind:value={fileOrDirName} />
+						<Space h="md" />
 						<Button ripple on:click={createFile}>Create File</Button>
 					{:else}
 						<Text>Upload File</Text>
+					{/if}
+				</Paper>
+			</Stack>
+		</Container>
+	</Box>
+{:else if createDirDirectory}
+	<Overlay zIndex={100} use={[_portal]} />
+	<Box root="div" css={{ position: 'absolute', top: 0, width: '100%', height: '100%', zIndex: 200 }} use={[_portal]}>
+		<Container override={{ height: '100%' }} size="sm">
+			<Stack override={{ height: '100%' }} justify="space-around">
+				<Paper>
+					{#if createDirMode === null}
+						<SimpleGrid cols={2}>
+							<Button size="xl" ripple on:click={() => (createDirMode = CreateDirMode.CREATE)}>Create New Folder</Button>
+							<Button size="xl" ripple on:click={() => (createDirMode = CreateDirMode.UPLOAD)}>Upload Zipped Folder</Button>
+						</SimpleGrid>
+					{:else if createDirMode === CreateDirMode.CREATE}
+						<TextInput placeholder="Folder Name" required autocomplete="off" label="File Name" bind:value={fileOrDirName} />
+						<Space h="md" />
+						<Button ripple on:click={createDirectory}>Create Directory</Button>
+					{:else}
+						<Text>Upload Zipped Folder</Text>
 					{/if}
 				</Paper>
 			</Stack>

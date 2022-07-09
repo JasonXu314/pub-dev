@@ -4,7 +4,8 @@
 	import { createEventDispatcher } from 'svelte';
 	import FileElement from './FileElement.svelte';
 
-	export let dir: Directory;
+	export let directory: Directory;
+	export let prevPath: string;
 	export let getModel: (name: string) => FileModel;
 	export let setModel: (model: FileModel) => void;
 
@@ -40,7 +41,7 @@
 					<path fill="currentColor" d="M10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6H12L10,4Z" />
 				</svg>
 				<Text>
-					{dir.name}
+					{directory.name}
 				</Text>
 			</Group>
 			<Group override={{ paddingRight: '$smPX' }} spacing={4}>
@@ -49,7 +50,7 @@
 						variant="hover"
 						size={20}
 						override={{ color: '$gray300 !important', '&:hover': { backgroundColor: '$gray700 !important' } }}
-						on:click!stopPropagation={() => dispatch('create-file', dir.name)}
+						on:click!stopPropagation={() => dispatch('create-file', directory.name)}
 					>
 						<FilePlus />
 					</ActionIcon>
@@ -57,7 +58,7 @@
 						variant="hover"
 						size={20}
 						override={{ color: '$gray300 !important', '&:hover': { backgroundColor: '$gray700 !important' } }}
-						on:click!stopPropagation={() => dispatch('create-dir', dir.name)}
+						on:click!stopPropagation={() => dispatch('create-dir', directory.name)}
 					>
 						<Archive />
 					</ActionIcon>
@@ -66,20 +67,25 @@
 		</Group>
 	</UnstyledButton>
 	<Stack spacing={0} justify="start" override={{ paddingLeft: 24 }}>
-		{#if dir.dirs.length > 0}
-			{#each dir.dirs as dir}
+		{#if directory.dirs.length > 0}
+			{#each directory.dirs as dir}
 				<svelte:self
-					{dir}
+					directory={dir}
+					prevPath={prevPath === '' ? directory.name : `${prevPath}/${directory.name}`}
 					{getModel}
 					{setModel}
-					on:create-file={(evt) => dispatch('create-file', `${dir.name}/${evt.dtail}`)}
-					on:create-dir={(evt) => dispatch('create-dir', `${dir.name}/${evt.detail}`)}
+					on:create-file={(evt) => dispatch('create-file', `${directory.name}/${evt.detail}`)}
+					on:create-dir={(evt) => dispatch('create-dir', `${directory.name}/${evt.detail}`)}
 				/>
 			{/each}
 		{/if}
-		{#if dir.files.length > 0}
-			{#each dir.files as file}
-				<FileElement {file} model={getModel(`${dir.name}/${file}`)} on:click={(model) => setModel(model.detail)} />
+		{#if directory.files.length > 0}
+			{#each directory.files as file}
+				<FileElement
+					{file}
+					model={getModel(prevPath === '' ? `${directory.name}/${file}` : `${prevPath}/${directory.name}/${file}`)}
+					on:click={(model) => setModel(model.detail)}
+				/>
 			{/each}
 		{/if}
 	</Stack>
