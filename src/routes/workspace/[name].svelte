@@ -5,7 +5,8 @@
 	import FileElement from '$lib/components/FileElement.svelte';
 	import { BACKEND_URL, VIEW_URL } from '$lib/env';
 	import { currentModel } from '$lib/stores';
-	import { AppShell, Button, Container, Group, Loader, Seo, Stack, Text, TextInput } from '@svelteuidev/core';
+	import { _portal } from '$lib/utils';
+	import { AppShell, Box, Button, Container, Group, Loader, Overlay, Paper, Seo, SimpleGrid, Stack, Text, TextInput } from '@svelteuidev/core';
 	import axios, { AxiosError } from 'axios';
 	import Cookies from 'js-cookie';
 	import type { editor } from 'monaco-editor';
@@ -26,16 +27,24 @@
 		ERROR
 	}
 
-	let workspaceName = $page.params.name;
-	let div: HTMLDivElement | null = null;
-	let monacoEditor: editor.IStandaloneCodeEditor | null = null;
-	let state: State = State.LOADING;
-	let error: any | null = null,
-		errorMessage: string | null = null;
-	let token: string = '';
-	let workspaceDirectory: Directory | null = null;
-	let message: string | null = null;
-	let tabModels: FileModel[] = [];
+	enum CreateFileMode {
+		CREATE,
+		UPLOAD
+	}
+
+	let workspaceName = $page.params.name,
+		div: HTMLDivElement | null = null,
+		monacoEditor: editor.IStandaloneCodeEditor | null = null,
+		state: State = State.LOADING,
+		error: any | null = null,
+		errorMessage: string | null = null,
+		token: string = '',
+		workspaceDirectory: Directory | null = null,
+		message: string | null = null,
+		tabModels: FileModel[] = [],
+		createFileDirectory: string | null = null,
+		createFileMode: CreateFileMode | null = null,
+		fileOrDirName: string = '';
 
 	const models: Map<string, FileModel> = new Map();
 
@@ -234,6 +243,10 @@
 
 		tabModels = tabModels.filter((m) => m !== model);
 	}
+
+	function createFile(): void {
+		console.log(`${createFileDirectory}/${fileOrDirName}`);
+	}
 </script>
 
 <Seo title={`${workspaceName} Workspace | PubDev`} />
@@ -254,7 +267,7 @@
 					<ExternalLink slot="leftIcon" />
 				</Button>
 			</Group>
-			<Group spacing={8} override={{ height: '100%' }}>
+			<Group spacing={0} override={{ height: '100%' }}>
 				{#each tabModels as model}
 					<EditorTab fileName={getModelDisplayName(model)} on:click={() => setModel(model)} on:close={() => closeTab(model)} />
 				{/each}
@@ -265,7 +278,13 @@
 		{#if state === State.WORKING}
 			{#if workspaceDirectory !== null && workspaceDirectory.dirs.length > 0}
 				{#each workspaceDirectory.dirs as dir}
-					<DirectoryElement {dir} {getModel} {setModel} />
+					<DirectoryElement
+						{dir}
+						{getModel}
+						{setModel}
+						on:create-file={(evt) => (createFileDirectory = evt.detail)}
+						on:create-dir={(evt) => console.log(evt.detail)}
+					/>
 				{/each}
 			{/if}
 			{#if workspaceDirectory !== null && workspaceDirectory.files.length > 0}
@@ -303,11 +322,35 @@
 		{/if}
 	</slot>
 </AppShell>
+{#if createFileDirectory}
+	<Overlay zIndex={100} use={[_portal]} />
+	<Box root="div" css={{ position: 'absolute', top: 0, width: '100%', height: '100%', zIndex: 200 }} use={[_portal]}>
+		<Container override={{ height: '100%' }} size="sm">
+			<Stack override={{ height: '100%' }} justify="space-around">
+				<Paper>
+					{#if createFileMode === null}
+						<SimpleGrid cols={2}>
+							<Button size="xl" ripple on:click={() => (createFileMode = CreateFileMode.CREATE)}>Create New File</Button>
+							<Button size="xl" ripple on:click={() => (createFileMode = CreateFileMode.UPLOAD)}>Upload File(s)</Button>
+							<Button size="xl" ripple on:click={() => (createFileMode = CreateFileMode.UPLOAD)}>Upload Zipped Files</Button>
+						</SimpleGrid>
+					{:else if createFileMode === CreateFileMode.CREATE}
+						<TextInput placeholder="File Name" required autocomplete="off" label="File Name" bind:value={fileOrDirName} />
+						<Button ripple on:click={createFile}>Create File</Button>
+					{:else}
+						<Text>Upload File</Text>
+					{/if}
+				</Paper>
+			</Stack>
+		</Container>
+	</Box>
+{/if}
 
 <style>
 	#container {
 		height: 97vh;
 	}
+
 	/* 
 	:global(*) {
 		outline: 1px solid lime !important;

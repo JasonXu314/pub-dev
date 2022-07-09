@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Button, Group, Text } from '@svelteuidev/core';
+	import { ActionIcon, Group, Text } from '@svelteuidev/core';
 	import { Cross2 } from 'radix-icons-svelte';
 	import { createEventDispatcher } from 'svelte';
 
@@ -15,7 +15,9 @@
 		cursor: 'pointer',
 		'&:hover': {
 			background: '$dark500'
-		}
+		},
+		paddingRight: 5,
+		paddingLeft: 5
 	}}
 >
 	<Text
@@ -27,7 +29,12 @@
 	>
 		{fileName}
 	</Text>
-	<Button compact variant="subtle" on:click={() => dispatch('close')} override={{ padding: 2.5, height: 'fit-content' }}>
+	<ActionIcon
+		variant="hover"
+		size="xs"
+		on:click={() => dispatch('close')}
+		override={{ color: '$gray300 !important', '&:hover': { backgroundColor: '$gray700 !important' } }}
+	>
 		<Cross2 />
-	</Button>
+	</ActionIcon>
 </Group>

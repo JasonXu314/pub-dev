@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { Group, Stack, Text, UnstyledButton } from '@svelteuidev/core';
-	import { FilePlus } from 'radix-icons-svelte';
+	import { ActionIcon, Group, Stack, Text, UnstyledButton } from '@svelteuidev/core';
+	import { Archive, FilePlus } from 'radix-icons-svelte';
 	import { createEventDispatcher } from 'svelte';
 	import FileElement from './FileElement.svelte';
 
@@ -8,7 +8,7 @@
 	export let getModel: (name: string) => FileModel;
 	export let setModel: (model: FileModel) => void;
 
-	const dispatch = createEventDispatcher<{ 'create-file': void }>();
+	const dispatch = createEventDispatcher<{ 'create-file': string; 'create-dir': string }>();
 
 	let open: boolean = true,
 		hovering: boolean = false;
@@ -19,8 +19,6 @@
 		<Group
 			override={{
 				cursor: 'pointer',
-				paddingTop: 4,
-				paddingBottom: 4,
 				display: 'grid',
 				gridTemplateColumns: '1fr auto',
 				'&:hover': {
@@ -28,7 +26,7 @@
 				}
 			}}
 		>
-			<Group spacing={6}>
+			<Group spacing={6} override={{ marginTop: 4, marginBottom: 4 }}>
 				{#if open}
 					<svg viewBox="0 0 24 24" class="icon">
 						<path fill="currentColor" d="M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z" />
@@ -45,9 +43,24 @@
 					{dir.name}
 				</Text>
 			</Group>
-			<Group override={{ paddingRight: '$smPX' }}>
+			<Group override={{ paddingRight: '$smPX' }} spacing={4}>
 				{#if hovering}
-					<FilePlus on:click={() => dispatch('create-file')} />
+					<ActionIcon
+						variant="hover"
+						size={20}
+						override={{ color: '$gray300 !important', '&:hover': { backgroundColor: '$gray700 !important' } }}
+						on:click!stopPropagation={() => dispatch('create-file', dir.name)}
+					>
+						<FilePlus />
+					</ActionIcon>
+					<ActionIcon
+						variant="hover"
+						size={20}
+						override={{ color: '$gray300 !important', '&:hover': { backgroundColor: '$gray700 !important' } }}
+						on:click!stopPropagation={() => dispatch('create-dir', dir.name)}
+					>
+						<Archive />
+					</ActionIcon>
 				{/if}
 			</Group>
 		</Group>
@@ -55,7 +68,13 @@
 	<Stack spacing={0} justify="start" override={{ paddingLeft: 24 }}>
 		{#if dir.dirs.length > 0}
 			{#each dir.dirs as dir}
-				<svelte:self {dir} {getModel} {setModel} />
+				<svelte:self
+					{dir}
+					{getModel}
+					{setModel}
+					on:create-file={(evt) => dispatch('create-file', `${dir.name}/${evt.dtail}`)}
+					on:create-dir={(evt) => dispatch('create-dir', `${dir.name}/${evt.detail}`)}
+				/>
 			{/each}
 		{/if}
 		{#if dir.files.length > 0}
