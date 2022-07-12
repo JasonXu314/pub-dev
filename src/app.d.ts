@@ -15,3 +15,9 @@ type FileModel = {
 	path: string;
 	model: import('monaco-editor').editor.IModel;
 };
+
+type NewFile = {
+	name: string;
+	path: string;
+	content: string;
+};
