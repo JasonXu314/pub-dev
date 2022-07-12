@@ -1,3 +1,4 @@
+import JSZip from 'jszip';
 import type { editor } from 'monaco-editor';
 import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
 import CSSWorker from 'monaco-editor/esm/vs/language/css/css.worker?worker';
@@ -203,6 +204,47 @@ export class Editor {
 		if (this._onWorkspaceChange) {
 			this._onWorkspaceChange({ ...this._workspace! });
 		}
+	}
+
+	public async createDirectory(dir: string, name: string): Promise<void>;
+	public async createDirectory(dir: string, file: File): Promise<void>;
+	public async createDirectory(dir: string, nameOrFile: string | File): Promise<void> {
+		const newDir = await this._client.mkdir(dir, nameOrFile);
+
+		await this._buildModels(newDir, dir.split('/'));
+
+		let fileDir = this._workspace!;
+
+		dir.split('/').forEach((dir) => {
+			fileDir = fileDir.dirs.find((d) => d.name === dir)!;
+		});
+
+		fileDir.dirs.push(newDir);
+		if (this._onWorkspaceChange) {
+			this._onWorkspaceChange({ ...this._workspace! });
+		}
+	}
+
+	public async download(): Promise<void> {
+		const zip = new JSZip();
+
+		const addDir = (dir: Directory, prevPath: string[]): void => {
+			dir.dirs.forEach((d) => addDir(d, prevPath.concat(dir.name)));
+			dir.files.forEach((f) => {
+				const filePath = prevPath.concat(dir.name, f).join('/');
+
+				zip.file(filePath, this.getModel(filePath).model.getValue());
+			});
+		};
+
+		this._workspace!.dirs.forEach((d) => addDir(d, []));
+
+		zip.generateAsync({ type: 'blob' }).then((file) => {
+			const a = document.createElement('a');
+			a.href = URL.createObjectURL(file);
+			a.download = `${this._name}.zip`;
+			a.click();
+		});
 	}
 
 	private async _buildModels(directory: Directory, prevPath: string[]): Promise<void> {

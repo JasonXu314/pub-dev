@@ -11,13 +11,6 @@
 	import { _portal } from '$lib/utils';
 	import { AppShell, Box, Button, Container, Group, Loader, Overlay, Paper, Seo, SimpleGrid, Space, Stack, Text, TextInput } from '@svelteuidev/core';
 	import { AxiosError } from 'axios';
-	import JSZip from 'jszip';
-	import type { editor } from 'monaco-editor';
-	import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
-	import CSSWorker from 'monaco-editor/esm/vs/language/css/css.worker?worker';
-	import HTMLWorker from 'monaco-editor/esm/vs/language/html/html.worker?worker';
-	import JSONWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker';
-	import TSWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker';
 	import { ClipboardCopy, Download, ExternalLink } from 'radix-icons-svelte';
 	import { onMount, tick } from 'svelte';
 
@@ -41,12 +34,11 @@
 
 	let workspaceName = $page.params.name,
 		div: HTMLDivElement | null = null,
-		monacoEditor: editor.IStandaloneCodeEditor | null = null,
 		state: State = State.LOADING,
 		error: any | null = null,
 		errorMessage: string | null = null,
 		token: string = '',
-		workspaceDirectory: Directory | null = null,
+		workspace: Directory | null = null,
 		message: string | null = null,
 		tabModels: FileModel[] = [],
 		createFileDirectory: string | null = null,
@@ -54,102 +46,15 @@
 		createFileMode: CreateFileMode | null = null,
 		createDirMode: CreateDirMode | null = null,
 		fileOrDirName: string = '',
-		monaco: typeof import('monaco-editor') | null = null,
 		currentFileViewPath: string = '',
 		client = new Client(workspaceName),
 		editor = new Editor(workspaceName, client);
-
-	const models: Map<string, FileModel> = new Map();
 
 	const SIDEBAR_WIDTH = 256 + 20 * 2;
 
 	onMount(async () => {
 		try {
-			const workspace = await client.getWorkspace();
-
-			buildEditor(workspace);
-		} catch (e: unknown) {
-			if (e instanceof AxiosError) {
-				console.log(e);
-				if (e.response?.status === 401) {
-					state = State.AUTHORIZING;
-				} else {
-					state = State.ERROR;
-					error = e;
-				}
-			} else {
-				state = State.ERROR;
-				error = e;
-			}
-		}
-	});
-
-	async function buildEditor(workspace: Workspace): Promise<void> {
-		// @ts-ignore
-		self.MonacoEnvironment = {
-			getWorker: function (_: any, label: string) {
-				switch (label) {
-					case 'json':
-						return new JSONWorker();
-					case 'css':
-					case 'scss':
-					case 'less':
-						return new CSSWorker();
-					case 'html':
-					case 'handlebars':
-					case 'razor':
-						return new HTMLWorker();
-					case 'typescript':
-					case 'javascript':
-						return new TSWorker();
-					default:
-						return new EditorWorker();
-				}
-			}
-		};
-
-		editor.build(async () => {
-			await tick();
-
-			const shadowRoot = div!.attachShadow({ mode: 'open' });
-			const innerDiv = document.createElement('div');
-			innerDiv.style.height = '95vh';
-			shadowRoot.appendChild(innerDiv);
-
-			// transplant styles for monaco editor
-			Array.from(document.getElementsByTagName('style')).forEach((elem) => {
-				if (elem.innerHTML.includes('Microsoft')) {
-					elem.remove();
-					innerDiv.appendChild(elem);
-				}
-			});
-
-			return innerDiv;
-		});
-
-		state = State.WORKING;
-
-		editor
-			.onSave(() => {
-				message = 'Saved!';
-			})
-			.onWorkspaceChange((workspace) => {
-				workspaceDirectory = workspace;
-			})
-			.onOpenTabsChange((tabs) => {
-				tabModels = tabs;
-			});
-	}
-
-	async function loadWorkspace(): Promise<void> {
-		error = null;
-		errorMessage = null;
-		client.useToken(token);
-
-		try {
-			const workspace = await client.getWorkspace();
-
-			await buildEditor(workspace);
+			await buildEditor();
 		} catch (e: unknown) {
 			if (e instanceof AxiosError) {
 				console.log(e);
@@ -165,14 +70,59 @@
 				error = e;
 			}
 		}
+	});
+
+	async function buildEditor(): Promise<void> {
+		editor.build(async () => {
+			await tick();
+
+			const shadowRoot = div!.attachShadow({ mode: 'open' });
+			const innerDiv = document.createElement('div');
+			innerDiv.style.height = '95vh';
+			shadowRoot.appendChild(innerDiv);
+
+			// transplant styles for monaco editor
+			Array.from(document.getElementsByTagName('style')).forEach((elem) => {
+				if (elem.innerHTML.includes('Microsoft')) {
+					elem.remove();
+					innerDiv.appendChild(elem);
+				}
+			});
+			innerDiv.appendChild(document.getElementById('codicons-font')!);
+
+			return innerDiv;
+		});
+
+		state = State.WORKING;
+
+		editor
+			.onSave(() => (message = 'Saved!'))
+			.onWorkspaceChange((ws) => (workspace = ws))
+			.onOpenTabsChange((tabs) => (tabModels = tabs));
 	}
 
-	function setModel(model: FileModel | null) {
-		editor.setModel(model);
-	}
+	async function loadWorkspace(): Promise<void> {
+		error = null;
+		errorMessage = null;
+		client.useToken(token);
 
-	function getModel(fileName: string): FileModel {
-		return editor.getModel(fileName);
+		try {
+			await buildEditor();
+		} catch (e: unknown) {
+			if (e instanceof AxiosError) {
+				console.log(e);
+				if (e.response?.status === 401) {
+					state = State.AUTHORIZING;
+					errorMessage = e.response.data.message;
+				} else {
+					state = State.ERROR;
+					error = e;
+				}
+			} else {
+				state = State.ERROR;
+				error = e;
+			}
+		}
 	}
 
 	$: {
@@ -191,10 +141,6 @@
 
 	function getModelDisplayName(model: FileModel): string {
 		return model.path.split('/').at(-1)!;
-	}
-
-	function closeTab(model: FileModel): void {
-		editor.closeTab(model);
 	}
 
 	function resetCreationModal(): void {
@@ -218,72 +164,53 @@
 	async function createFile(file?: File): Promise<void> {
 		try {
 			await editor.createFile(createFileDirectory!, file ? file : fileOrDirName);
-
-			resetCreationModal();
 		} catch (e) {
 			console.log(e);
 			if (e instanceof AxiosError) {
 				message = e.response?.data.message || null;
 			}
+		} finally {
+			resetCreationModal();
 		}
 	}
 
 	async function multiCreateFile(fileOrFiles: File | File[]): Promise<void> {
 		try {
 			await editor.multiCreateFile(createFileDirectory!, fileOrFiles);
-
-			resetCreationModal();
 		} catch (e) {
 			console.log(e);
 			if (e instanceof AxiosError) {
 				message = e.response?.data.message || null;
 			}
+		} finally {
+			resetCreationModal();
 		}
 	}
 
 	async function createDirectory(): Promise<void> {
 		try {
-			await client.mkdir(createDirDirectory!, fileOrDirName);
-
-			const _dirDir = { ...workspaceDirectory! };
-			let dirDir = _dirDir;
-
-			createDirDirectory!.split('/').forEach((dir) => {
-				dirDir = dirDir.dirs.find((d) => d.name === dir)!;
-			});
-
-			dirDir.dirs.push({ name: fileOrDirName, dirs: [], files: [] });
-			workspaceDirectory = _dirDir;
-
-			resetCreationModal();
+			await editor.createDirectory(createDirDirectory!, fileOrDirName);
 		} catch (e) {
 			console.log(e);
 			if (e instanceof AxiosError) {
 				message = e.response?.data.message || null;
 			}
+		} finally {
+			resetCreationModal();
 		}
 	}
 
-	function downloadProject(): void {
-		const zip = new JSZip();
-
-		function addDir(dir: Directory, prevPath: string[]): void {
-			dir.dirs.forEach((d) => addDir(d, prevPath.concat(dir.name)));
-			dir.files.forEach((f) => {
-				const filePath = prevPath.concat(dir.name, f).join('/');
-
-				zip.file(filePath, getModel(filePath).model.getValue());
-			});
+	async function uploadDirectory(directory: File | File[]): Promise<void> {
+		try {
+			await editor.createDirectory(createDirDirectory!, directory as File);
+		} catch (e) {
+			console.log(e);
+			if (e instanceof AxiosError) {
+				message = e.response?.data.message || null;
+			}
+		} finally {
+			resetCreationModal();
 		}
-
-		workspaceDirectory!.dirs.forEach((d) => addDir(d, []));
-
-		zip.generateAsync({ type: 'blob' }).then((file) => {
-			const a = document.createElement('a');
-			a.href = URL.createObjectURL(file);
-			a.download = `${workspaceName}.zip`;
-			a.click();
-		});
 	}
 </script>
 
@@ -307,32 +234,32 @@
 			</Group>
 			<Group spacing={0} override={{ height: '100%' }}>
 				{#each tabModels as model}
-					<EditorTab fileName={getModelDisplayName(model)} on:click={() => setModel(model)} on:close={() => closeTab(model)} />
+					<EditorTab fileName={getModelDisplayName(model)} on:click={() => editor.setModel(model)} on:close={() => editor.closeTab(model)} />
 				{/each}
 			</Group>
 		{/if}
 	</Group>
 	<Stack justify="start" spacing={0} override={{ width: SIDEBAR_WIDTH, paddingTop: '$xsPX' }} slot="navbar">
 		{#if state === State.WORKING}
-			<Button compact on:click={downloadProject} override={{ marginLeft: '$smPX', marginRight: '$smPX' }}>
+			<Button compact on:click={() => editor.download()} override={{ marginLeft: '$smPX', marginRight: '$smPX' }}>
 				Export Project to ZIP
 				<Download slot="leftIcon" />
 			</Button>
-			{#if workspaceDirectory !== null && workspaceDirectory.dirs.length > 0}
-				{#each workspaceDirectory.dirs as directory}
+			{#if workspace !== null && workspace.dirs.length > 0}
+				{#each workspace.dirs as directory}
 					<DirectoryElement
 						{directory}
 						prevPath=""
-						{getModel}
-						{setModel}
+						getModel={(name) => editor.getModel(name)}
+						setModel={(model) => editor.setModel(model)}
 						on:create-file={(evt) => (createFileDirectory = evt.detail)}
 						on:create-dir={(evt) => (createDirDirectory = evt.detail)}
 					/>
 				{/each}
 			{/if}
-			{#if workspaceDirectory !== null && workspaceDirectory.files.length > 0}
-				{#each workspaceDirectory.files as file}
-					<FileElement {file} model={getModel(file)} on:click={(model) => setModel(model.detail)} />
+			{#if workspace !== null && workspace.files.length > 0}
+				{#each workspace.files as file}
+					<FileElement {file} model={editor.getModel(file)} on:click={(model) => editor.setModel(model.detail)} />
 				{/each}
 			{/if}
 		{/if}
@@ -403,7 +330,7 @@
 					<Space h="md" />
 					<Button ripple on:click={createDirectory}>Create Directory</Button>
 				{:else}
-					<Text>Upload Zipped Folder</Text>
+					<FileUpload on:upload={(evt) => uploadDirectory(evt.detail)} />
 				{/if}
 			</Paper>
 		</Container>

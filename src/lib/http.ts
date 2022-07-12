@@ -50,7 +50,7 @@ export class Client {
 
 			await this._axios.post(`${BACKEND_URL}/workspace/${this._name}/${path}`, data);
 		} else {
-			await axios.post(`${BACKEND_URL}/workspace/${path}`, { type: 'file' });
+			await this._axios.post(`${BACKEND_URL}/workspace/${this._name}/${path}`, { type: 'file' });
 		}
 
 		return {
@@ -106,10 +106,67 @@ export class Client {
 		}
 	}
 
-	public async mkdir(dir: string, name: string): Promise<void> {
-		const path = `${dir}/${name}`;
+	public async mkdir(dir: string, nameOrFile: string | File): Promise<Directory> {
+		if (typeof nameOrFile === 'string') {
+			const name = nameOrFile;
+			const path = `${dir}/${name}`;
 
-		return axios.post(`${BACKEND_URL}/workspace/${path}`, { type: 'directory' });
+			await this._axios.post(`${BACKEND_URL}/workspace/${this._name}/${path}`, { type: 'directory' });
+
+			return {
+				name,
+				dirs: [],
+				files: []
+			};
+		} else {
+			const file = nameOrFile,
+				name = file.name.split('.').slice(0, -1).join('.'),
+				path = `${dir}/${name}`;
+
+			const data = new FormData();
+			data.append('type', 'directory');
+			data.append('file', file, name);
+
+			await this._axios.post(`${BACKEND_URL}/workspace/${this._name}/${path}`, data);
+
+			const zip = new JSZip();
+			await zip.loadAsync(file);
+
+			const directory: Directory = {
+				name,
+				dirs: [],
+				files: []
+			};
+
+			Object.keys(zip.files)
+				.filter((key) => !zip.files[key].dir)
+				.forEach(async (file) => {
+					let dir = directory;
+
+					file.split('/')
+						.slice(0, -1)
+						.forEach((part) => {
+							const subdir = dir.dirs.find((d) => d.name === part);
+
+							if (subdir) {
+								dir = subdir;
+							} else {
+								const newDir = {
+									name: part,
+									dirs: [],
+									files: []
+								};
+
+								dir.dirs.push(newDir);
+								dir = newDir;
+							}
+						});
+
+					dir.files.push(file.split('/').pop()!);
+				});
+
+			return directory;
+		}
 	}
 
 	public useToken(token: string): void {

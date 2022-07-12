@@ -21,4 +21,3 @@ type NewFile = {
 	path: string;
 	content: string;
 };
-
