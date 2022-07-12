@@ -17,6 +17,8 @@ type FileModel = {
 };
 
 type NewFile = {
+	name: string;
 	path: string;
 	content: string;
 };
+

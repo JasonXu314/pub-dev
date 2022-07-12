@@ -146,6 +146,65 @@ export class Editor {
 		}
 	}
 
+	public async createFile(dir: string, file: File | string): Promise<void> {
+		if (typeof file === 'string') {
+			const { path, content } = await this._client.touch(dir, file);
+
+			const model = this._monaco!.editor.createModel(content, undefined, this._monaco!.Uri.file(path));
+
+			this._models.set(path, { model, path });
+
+			let fileDir = this._workspace!;
+
+			dir.split('/').forEach((dir) => {
+				fileDir = fileDir.dirs.find((d) => d.name === dir)!;
+			});
+
+			fileDir.files.push(file);
+			if (this._onWorkspaceChange) {
+				this._onWorkspaceChange({ ...this._workspace! });
+			}
+		} else {
+			const { path, content } = await this._client.touch(dir, file.name, file);
+
+			const model = this._monaco!.editor.createModel(content, undefined, this._monaco!.Uri.file(path));
+
+			this._models.set(path, { model, path });
+
+			let fileDir = this._workspace!;
+
+			dir.split('/').forEach((dir) => {
+				fileDir = fileDir.dirs.find((d) => d.name === dir)!;
+			});
+
+			fileDir.files.push(file.name);
+			if (this._onWorkspaceChange) {
+				this._onWorkspaceChange({ ...this._workspace! });
+			}
+		}
+	}
+
+	public async multiCreateFile(dir: string, fileOrFiles: File | File[]): Promise<void> {
+		const newFiles = await this._client.multiTouch(dir, fileOrFiles);
+
+		newFiles.forEach((file) => {
+			const model = this._monaco!.editor.createModel(file.content, undefined, this._monaco!.Uri.file(file.path));
+
+			this._models.set(file.path, { model, path: file.path });
+		});
+
+		let fileDir = this._workspace!;
+
+		dir.split('/').forEach((dir) => {
+			fileDir = fileDir.dirs.find((d) => d.name === dir)!;
+		});
+
+		fileDir.files.push(...newFiles.map((f) => f.name));
+		if (this._onWorkspaceChange) {
+			this._onWorkspaceChange({ ...this._workspace! });
+		}
+	}
+
 	private async _buildModels(directory: Directory, prevPath: string[]): Promise<void> {
 		await Promise.all(
 			directory.files.map(async (file) => {

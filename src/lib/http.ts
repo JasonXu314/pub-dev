@@ -54,6 +54,7 @@ export class Client {
 		}
 
 		return {
+			name,
 			path,
 			content: await this.read(path)
 		};
@@ -70,6 +71,7 @@ export class Client {
 					zip.file(file.name, file);
 
 					return {
+						name: file.name,
 						path: `${dir}/${file.name}`,
 						content: await file.text()
 					};
@@ -94,6 +96,7 @@ export class Client {
 				return Promise.all(
 					Object.keys(zip.files).map(async (file) => {
 						return {
+							name: file,
 							path: `${dir}/${file}`,
 							content: await zip.files[file].async('text')
 						};

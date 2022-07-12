@@ -217,21 +217,7 @@
 
 	async function createFile(file?: File): Promise<void> {
 		try {
-			const { path, content } = await client.touch(createFileDirectory!, file ? file.name : fileOrDirName);
-
-			const model = monaco!.editor.createModel(content, undefined, monaco!.Uri.file(path));
-
-			models.set(path, { model, path });
-
-			const _fileDir = { ...workspaceDirectory! };
-			let fileDir = _fileDir;
-
-			createFileDirectory!.split('/').forEach((dir) => {
-				fileDir = fileDir.dirs.find((d) => d.name === dir)!;
-			});
-
-			fileDir.files.push(file ? file.name : fileOrDirName);
-			workspaceDirectory = _fileDir;
+			await editor.createFile(createFileDirectory!, file ? file : fileOrDirName);
 
 			resetCreationModal();
 		} catch (e) {
@@ -243,9 +229,16 @@
 	}
 
 	async function multiCreateFile(fileOrFiles: File | File[]): Promise<void> {
-		await client.multiTouch(createFileDirectory!, fileOrFiles);
+		try {
+			await editor.multiCreateFile(createFileDirectory!, fileOrFiles);
 
-		resetCreationModal();
+			resetCreationModal();
+		} catch (e) {
+			console.log(e);
+			if (e instanceof AxiosError) {
+				message = e.response?.data.message || null;
+			}
+		}
 	}
 
 	async function createDirectory(): Promise<void> {
