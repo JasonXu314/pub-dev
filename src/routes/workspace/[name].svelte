@@ -88,7 +88,7 @@
 					innerDiv.appendChild(elem);
 				}
 			});
-			innerDiv.appendChild(document.getElementById('codicons-font')!);
+			// innerDiv.appendChild(document.getElementById('codicons-font')!);
 
 			return innerDiv;
 		});
@@ -214,6 +214,9 @@
 	}
 </script>
 
+<svelte:head>
+	<link rel="stylesheet" type="text/css" href="/font.css" />
+</svelte:head>
 <Seo title={`${workspaceName} Workspace | PubDev`} />
 <AppShell override={{ main: { paddingLeft: '0 !important', paddingBottom: '0 !important', paddingTop: '0 !important' } }}>
 	<Group justify="start" spacing={0} slot="header" override={state === State.WORKING ? { height: '3vh' } : undefined}>
