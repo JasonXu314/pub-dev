@@ -11,7 +11,7 @@
 			<Title order={2} override={{ marginTop: '0 !important' }}>
 				{title}
 				{#if badge}
-					<Badge>{badge}</Badge>
+					<Badge override={{ transform: 'translateY(-4px)' }}>{badge}</Badge>
 				{/if}
 			</Title>
 			<slot />

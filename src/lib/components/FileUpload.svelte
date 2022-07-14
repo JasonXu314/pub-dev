@@ -3,6 +3,10 @@
 	import { createEventDispatcher } from 'svelte';
 
 	export let multiple: boolean = false;
+	export let action: string = 'Upload';
+	export let cancel: string = 'Cancel';
+	export let disabled: boolean = false;
+	export let loading: boolean = false;
 
 	let file: File | null = null,
 		files: File[] | null = null,
@@ -29,8 +33,8 @@
 				<Anchor href={URL.createObjectURL(file)} external>{file.name}</Anchor>
 			</Center>
 			<Group>
-				<Button ripple on:click={uploadSingle}>Upload</Button>
-				<Button ripple on:click={() => (file = null)}>Cancel</Button>
+				<Button {disabled} {loading} ripple on:click={uploadSingle}>{action}</Button>
+				<Button {disabled} {loading} ripple on:click={() => (file = null)}>{cancel}</Button>
 			</Group>
 		</Stack>
 	{/if}

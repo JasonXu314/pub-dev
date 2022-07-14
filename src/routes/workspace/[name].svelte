@@ -88,7 +88,6 @@
 					innerDiv.appendChild(elem);
 				}
 			});
-			// innerDiv.appendChild(document.getElementById('codicons-font')!);
 
 			return innerDiv;
 		});
@@ -217,21 +216,22 @@
 <svelte:head>
 	<link rel="stylesheet" type="text/css" href="/font.css" />
 </svelte:head>
-<Seo title={`${workspaceName} Workspace | PubDev`} />
+<Seo title="{workspaceName} Workspace | PubDev" />
 <AppShell override={{ main: { paddingLeft: '0 !important', paddingBottom: '0 !important', paddingTop: '0 !important' } }}>
 	<Group justify="start" spacing={0} slot="header" override={state === State.WORKING ? { height: '3vh' } : undefined}>
 		{#if state === State.WORKING}
 			<Group override={{ width: SIDEBAR_WIDTH, paddingLeft: '$mdPX' }}>
-				<Button compact on:click={() => navigator.clipboard.writeText(token)}
-					>Copy Token
+				<Button compact on:click={() => navigator.clipboard.writeText(token)}>
+					Copy Token
 					<ClipboardCopy slot="leftIcon" />
 				</Button>
 				<Button
 					compact
-					href={`${VIEW_URL.replace('__NAME__', workspaceName)}/${currentFileViewPath}`}
+					href="{VIEW_URL.replace('__NAME__', workspaceName)}/{currentFileViewPath}"
 					external
 					disabled={!$currentModel || $currentModel.model.getLanguageId() !== 'html'}
-					>Visit Page
+				>
+					Visit Page
 					<ExternalLink slot="leftIcon" />
 				</Button>
 			</Group>
