@@ -4,3 +4,7 @@ import { portal } from '@svelteuidev/composables';
 export function _portal(node: HTMLOrSVGElement, target: HTMLElement | string) {
 	return portal(node as HTMLElement, target);
 }
+
+export function normalizeProjectName(name: string) {
+	return name.replace(/\s+/g, '-').toLowerCase();
+}
