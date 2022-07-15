@@ -2,7 +2,7 @@
 	import Card from '$lib/components/Card.svelte';
 	import FileUpload from '$lib/components/FileUpload.svelte';
 	import { BACKEND_URL } from '$lib/env';
-	import { _portal } from '$lib/utils';
+	import { normalizeProjectName, _portal } from '$lib/utils';
 	import {
 		Anchor,
 		Button,
@@ -54,9 +54,10 @@
 
 	async function create(): Promise<void> {
 		creating = true;
+		error = null;
 
 		try {
-			newWorkspace = await axios.post<Workspace>(`${BACKEND_URL}/workspace/${projectName}`).then((res) => res.data);
+			newWorkspace = await axios.post<Workspace>(`${BACKEND_URL}/workspace/${normalizeProjectName(projectName)}`).then((res) => res.data);
 		} catch (err) {
 			if (err instanceof AxiosError) {
 				error = err.response?.data.message || 'An unknown server error occured';
@@ -184,30 +185,29 @@
 				<Space h="md" />
 				<Group>
 					<Button href="/workspace/{newWorkspace.name}" external>
-						Visit Page
+						Go to Editor
 						<ExternalLink slot="leftIcon" />
 					</Button>
 				</Group>
-			{:else}
-				{#if creationMode === CreateProjectMode.CREATE}
-					<Title>Create Starter Project</Title>
-					<Divider />
-					<Space h="lg" />
-					<TextInput placeholder="Project Name" required autocomplete="off" label="Project Name" bind:value={projectName} />
-					{#if projectName.includes(' ') || projectName.toLocaleLowerCase() !== projectName}
-						<Text>Your project will be created as <ICode>{projectName.toLocaleLowerCase().replaceAll(' ', '-')}</ICode></Text>
-					{/if}
-					<Space h="md" />
-					<Button ripple loading={creating} disabled={creating} on:click={() => create()}>Create Project</Button>
-				{:else if creationMode === CreateProjectMode.UPLOAD}
-					<Title>Upload Project</Title>
-					<Divider />
-					<Space h="lg" />
-					<FileUpload loading={creating} disabled={creating} on:upload={(evt) => upload(evt.detail)} />
-				{/if}
+			{:else if creationMode === CreateProjectMode.CREATE}
+				<Title>Create Starter Project</Title>
+				<Divider />
 				<Space h="lg" />
+				<TextInput placeholder="Project Name" required autocomplete="off" label="Project Name" bind:value={projectName} />
+				{#if normalizeProjectName(projectName) !== projectName}
+					<Space h="xs" />
+					<Text>Your project will be created as <ICode>{normalizeProjectName(projectName)}</ICode></Text>
+				{/if}
+				<Space h="md" />
+				<Button ripple loading={creating} disabled={creating} on:click={() => create()}>Create Project</Button>
+			{:else if creationMode === CreateProjectMode.UPLOAD}
+				<Title>Upload Project</Title>
+				<Divider />
+				<Space h="lg" />
+				<FileUpload action="Create" loading={creating} disabled={creating} on:upload={(evt) => upload(evt.detail)} />
 			{/if}
 			{#if error}
+				<Space h="lg" />
 				<Text color="red">{error}</Text>
 			{/if}
 		</Container>
