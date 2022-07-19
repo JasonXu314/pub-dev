@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { currentModel } from '$lib/stores';
+	import { getMIMEType } from '$lib/utils';
 	import { Group, Text, UnstyledButton } from '@svelteuidev/core';
 	import { createEventDispatcher } from 'svelte';
 
@@ -29,11 +30,13 @@
 			background: $currentModel === model ? '$dark500' : undefined
 		}}
 	>
-		{#if model.model.getLanguageId() === 'html'}
-			<img class="icon" src="https://raw.githubusercontent.com/PKief/vscode-material-icon-theme/main/icons/html.svg" alt="" />
-		{:else if model.model.getLanguageId() === 'javascript'}
-			<img class="icon" src="https://raw.githubusercontent.com/PKief/vscode-material-icon-theme/main/icons/javascript.svg" alt="" />
+		{@const mimeType = getMIMEType(model.path)}
+		{#if mimeType === 'image/png' || mimeType === 'image/jpeg'}
+			<img class="icon" src="https://raw.githubusercontent.com/PKief/vscode-material-icon-theme/main/icons/image.svg" alt="" />
+		{:else if mimeType === 'image/x-icon'}
+			<img class="icon" src="https://raw.githubusercontent.com/PKief/vscode-material-icon-theme/main/icons/favicon.svg" alt="" />
 		{/if}
+		<img class="icon" src="https://raw.githubusercontent.com/PKief/vscode-material-icon-theme/main/icons/{model.model.getLanguageId()}.svg" alt="" />
 		<Text>
 			{file}
 		</Text>

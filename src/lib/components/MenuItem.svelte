@@ -23,7 +23,7 @@
 	}}
 	on:click
 >
-	<Group>
+	<Group spacing="xs">
 		<Icon {icon} />
 		<slot />
 	</Group>

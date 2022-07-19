@@ -53,11 +53,21 @@
 		showMenu: boolean = false,
 		menuX: number | null = null,
 		menuY: number | null = null,
-		menuType: 'file' | 'directory' | null = null;
+		menuType: 'file' | 'directory' | null = null,
+		appShell: AppShell;
 
 	const SIDEBAR_WIDTH = 256 + 20 * 2;
 
 	onMount(async () => {
+		appShell.$$.root.addEventListener('click', () => {
+			if (showMenu) {
+				showMenu = false;
+				menuType = null;
+				menuX = null;
+				menuY = null;
+			}
+		});
+
 		try {
 			await buildEditor();
 		} catch (e: unknown) {
@@ -228,7 +238,7 @@
 	<link rel="stylesheet" type="text/css" href="/font.css" />
 </svelte:head>
 <Seo title="{workspaceName} Workspace | PubDev" />
-<AppShell override={{ main: { paddingLeft: '0 !important', paddingBottom: '0 !important', paddingTop: '0 !important' } }}>
+<AppShell override={{ main: { paddingLeft: '0 !important', paddingBottom: '0 !important', paddingTop: '0 !important' } }} bind:this={appShell}>
 	<Group justify="start" spacing={0} slot="header" override={state === State.WORKING ? { height: '3vh' } : undefined}>
 		{#if state === State.WORKING}
 			<Group override={{ width: SIDEBAR_WIDTH, paddingLeft: '$mdPX' }}>

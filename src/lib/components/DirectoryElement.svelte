@@ -42,14 +42,16 @@
 				}
 			}}
 		>
-			<Group spacing={6} override={{ marginTop: 4, marginBottom: 4 }}>
-				{#if open}
-					<Icon icon={chevronDown} />
-					<Icon icon={folderOpen} />
-				{:else}
-					<Icon icon={chevronRight} />
-					<Icon icon={folder} />
-				{/if}
+			<Group spacing={6} override={{ margin: '4px 2px' }}>
+				<Group spacing={2}>
+					{#if open}
+						<Icon icon={chevronDown} />
+						<Icon icon={folderOpen} />
+					{:else}
+						<Icon icon={chevronRight} />
+						<Icon icon={folder} />
+					{/if}
+				</Group>
 				<Text>
 					{directory.name}
 				</Text>
