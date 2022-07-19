@@ -6,10 +6,15 @@
 	export let file: string;
 	export let model: FileModel;
 
-	const dispatch = createEventDispatcher<{ click: FileModel }>();
+	const dispatch = createEventDispatcher<{ click: FileModel; context: ContextEvent }>();
+
+	// it's actually a PointerEvent, but svelteui's types are bad i think
+	function dispatchContext(evt: any) {
+		dispatch('context', { path: file, type: 'file', pos: [evt.pageX, evt.pageY] });
+	}
 </script>
 
-<UnstyledButton on:click={() => dispatch('click', model)}>
+<UnstyledButton on:click={() => dispatch('click', model)} on:contextmenu!preventDefault={dispatchContext}>
 	<Group
 		noWrap
 		spacing={6}

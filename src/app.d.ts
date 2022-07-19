@@ -21,3 +21,9 @@ type NewFile = {
 	path: string;
 	content: string;
 };
+
+type ContextEvent = {
+	type: 'file' | 'directory';
+	path: string;
+	pos: [number, number];
+};

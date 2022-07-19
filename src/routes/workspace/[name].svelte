@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import ContextMenu from '$lib/components/ContextMenu.svelte';
 	import DirectoryElement from '$lib/components/DirectoryElement.svelte';
 	import EditorTab from '$lib/components/EditorTab.svelte';
 	import FileElement from '$lib/components/FileElement.svelte';
@@ -9,9 +10,9 @@
 	import { Client } from '$lib/http';
 	import { currentModel } from '$lib/stores';
 	import { _portal } from '$lib/utils';
-	import { AppShell, Box, Button, Container, Group, Loader, Overlay, Paper, Seo, SimpleGrid, Space, Stack, Text, TextInput } from '@svelteuidev/core';
+	import { AppShell, Button, Container, Group, Loader, Modal, Notification, Seo, SimpleGrid, Space, Stack, Text, TextInput } from '@svelteuidev/core';
 	import { AxiosError } from 'axios';
-	import { ClipboardCopy, Download, ExternalLink } from 'radix-icons-svelte';
+	import { Check, ClipboardCopy, Cross2, Download, ExternalLink } from 'radix-icons-svelte';
 	import { onMount, tick } from 'svelte';
 
 	enum State {
@@ -48,7 +49,11 @@
 		fileOrDirName: string = '',
 		currentFileViewPath: string = '',
 		client = new Client(workspaceName),
-		editor = new Editor(workspaceName, client);
+		editor = new Editor(workspaceName, client),
+		showMenu: boolean = false,
+		menuX: number | null = null,
+		menuY: number | null = null,
+		menuType: 'file' | 'directory' | null = null;
 
 	const SIDEBAR_WIDTH = 256 + 20 * 2;
 
@@ -166,7 +171,7 @@
 		} catch (e) {
 			console.log(e);
 			if (e instanceof AxiosError) {
-				message = e.response?.data.message || null;
+				errorMessage = e.response?.data.message || null;
 			}
 		} finally {
 			resetCreationModal();
@@ -179,7 +184,7 @@
 		} catch (e) {
 			console.log(e);
 			if (e instanceof AxiosError) {
-				message = e.response?.data.message || null;
+				errorMessage = e.response?.data.message || null;
 			}
 		} finally {
 			resetCreationModal();
@@ -192,7 +197,7 @@
 		} catch (e) {
 			console.log(e);
 			if (e instanceof AxiosError) {
-				message = e.response?.data.message || null;
+				errorMessage = e.response?.data.message || null;
 			}
 		} finally {
 			resetCreationModal();
@@ -205,11 +210,17 @@
 		} catch (e) {
 			console.log(e);
 			if (e instanceof AxiosError) {
-				message = e.response?.data.message || null;
+				errorMessage = e.response?.data.message || null;
 			}
 		} finally {
 			resetCreationModal();
 		}
+	}
+
+	function showContextMenu(evt: ContextEvent): void {
+		[menuX, menuY] = evt.pos;
+		showMenu = true;
+		menuType = evt.type;
 	}
 </script>
 
@@ -257,12 +268,18 @@
 						setModel={(model) => editor.setModel(model)}
 						on:create-file={(evt) => (createFileDirectory = evt.detail)}
 						on:create-dir={(evt) => (createDirDirectory = evt.detail)}
+						on:context={(evt) => showContextMenu(evt.detail)}
 					/>
 				{/each}
 			{/if}
 			{#if workspace !== null && workspace.files.length > 0}
 				{#each workspace.files as file}
-					<FileElement {file} model={editor.getModel(file)} on:click={(model) => editor.setModel(model.detail)} />
+					<FileElement
+						{file}
+						model={editor.getModel(file)}
+						on:click={(model) => editor.setModel(model.detail)}
+						on:context={(evt) => showContextMenu(evt.detail)}
+					/>
 				{/each}
 			{/if}
 		{/if}
@@ -295,49 +312,61 @@
 		{/if}
 	</slot>
 </AppShell>
-{#if createFileDirectory}
-	<Overlay zIndex={100} use={[_portal]} on:click={resetCreationModal} />
-	<Box root="div" css={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 200 }} use={[_portal]}>
-		<Container size="sm">
-			<Paper>
-				{#if createFileMode === null}
-					<SimpleGrid cols={2}>
-						<Button ripple size="xl" on:click={() => (createFileMode = CreateFileMode.CREATE)}>Create New File</Button>
-						<Button ripple size="xl" on:click={() => (createFileMode = CreateFileMode.UPLOAD)}>Upload File(s)</Button>
-						<Button ripple size="xl" on:click={() => (createFileMode = CreateFileMode.MULTI_UPLOAD)}>Upload Zipped Files</Button>
-					</SimpleGrid>
-				{:else if createFileMode === CreateFileMode.CREATE}
-					<TextInput placeholder="File Name" required autocomplete="off" label="File Name" bind:value={fileOrDirName} />
-					<Space h="md" />
-					<Button ripple on:click={() => createFile()}>Create File</Button>
-				{:else if createFileMode === CreateFileMode.UPLOAD}
-					<FileUpload multiple on:upload={handleFileUpload} />
-				{:else}
-					<FileUpload on:upload={(evt) => multiCreateFile(evt.detail)} />
-				{/if}
-			</Paper>
-		</Container>
-	</Box>
-{:else if createDirDirectory}
-	<Overlay zIndex={100} use={[_portal]} on:click={resetCreationModal} />
-	<Box root="div" css={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 200 }} use={[_portal]}>
-		<Container size="sm">
-			<Paper>
-				{#if createDirMode === null}
-					<SimpleGrid cols={2}>
-						<Button ripple size="xl" on:click={() => (createDirMode = CreateDirMode.CREATE)}>Create New Folder</Button>
-						<Button ripple size="xl" on:click={() => (createDirMode = CreateDirMode.UPLOAD)}>Upload Zipped Folder</Button>
-					</SimpleGrid>
-				{:else if createDirMode === CreateDirMode.CREATE}
-					<TextInput placeholder="Folder Name" required autocomplete="off" label="File Name" bind:value={fileOrDirName} />
-					<Space h="md" />
-					<Button ripple on:click={createDirectory}>Create Directory</Button>
-				{:else}
-					<FileUpload on:upload={(evt) => uploadDirectory(evt.detail)} />
-				{/if}
-			</Paper>
-		</Container>
-	</Box>
+<Modal opened={!!createFileDirectory} centered size="full" onClose={resetCreationModal} on:close={resetCreationModal} title="New File">
+	{#if createFileMode === null}
+		<SimpleGrid cols={2}>
+			<Button ripple size="xl" on:click={() => (createFileMode = CreateFileMode.CREATE)}>Create New File</Button>
+			<Button ripple size="xl" on:click={() => (createFileMode = CreateFileMode.UPLOAD)}>Upload File(s)</Button>
+			<Button ripple size="xl" on:click={() => (createFileMode = CreateFileMode.MULTI_UPLOAD)}>Upload Zipped Files</Button>
+		</SimpleGrid>
+	{:else if createFileMode === CreateFileMode.CREATE}
+		<TextInput placeholder="File Name" required autocomplete="off" label="File Name" bind:value={fileOrDirName} />
+		<Space h="md" />
+		<Button ripple on:click={() => createFile()}>Create File</Button>
+	{:else if createFileMode === CreateFileMode.UPLOAD}
+		<FileUpload multiple on:upload={handleFileUpload} />
+	{:else}
+		<FileUpload on:upload={(evt) => multiCreateFile(evt.detail)} />
+	{/if}
+</Modal>
+<Modal opened={!!createDirDirectory} centered size="full" onClose={resetCreationModal} on:close={resetCreationModal} title="New Folder">
+	{#if createDirMode === null}
+		<SimpleGrid cols={2}>
+			<Button ripple size="xl" on:click={() => (createDirMode = CreateDirMode.CREATE)}>Create New Folder</Button>
+			<Button ripple size="xl" on:click={() => (createDirMode = CreateDirMode.UPLOAD)}>Upload Zipped Folder</Button>
+		</SimpleGrid>
+	{:else if createDirMode === CreateDirMode.CREATE}
+		<TextInput placeholder="Folder Name" required autocomplete="off" label="File Name" bind:value={fileOrDirName} />
+		<Space h="md" />
+		<Button ripple on:click={createDirectory}>Create Directory</Button>
+	{:else}
+		<FileUpload on:upload={(evt) => uploadDirectory(evt.detail)} />
+	{/if}
+</Modal>
+{#if message}
+	<Notification
+		color="green"
+		use={[_portal]}
+		icon={Check}
+		override={{ position: 'absolute', top: '$mdPX', right: '$mdPX' }}
+		on:close={() => (message = null)}
+	>
+		{message}
+	</Notification>
+{/if}
+{#if errorMessage}
+	<Notification
+		color="red"
+		use={[_portal]}
+		icon={Cross2}
+		override={{ position: 'absolute', top: '$mdPX', right: '$mdPX' }}
+		on:close={() => (message = null)}
+	>
+		{errorMessage}
+	</Notification>
+{/if}
+{#if showMenu && menuType !== null && menuX !== null && menuY !== null}
+	<ContextMenu {menuX} {menuY} {menuType} />
 {/if}
 
 <style>

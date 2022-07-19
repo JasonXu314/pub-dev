@@ -1,11 +1,12 @@
 <script lang="ts">
-	import Card from '$lib/components/Card.svelte';
 	import FileUpload from '$lib/components/FileUpload.svelte';
 	import { BACKEND_URL } from '$lib/env';
 	import { normalizeProjectName, _portal } from '$lib/utils';
 	import {
 		Anchor,
+		Badge,
 		Button,
+		Card,
 		Code as ICode,
 		Container,
 		Divider,
@@ -13,8 +14,8 @@
 		Overlay,
 		Paper,
 		Seo,
+		SimpleGrid,
 		Space,
-		Stack,
 		Text,
 		TextInput,
 		Title,
@@ -119,50 +120,60 @@
 <Seo title="Project Creation | PubDev" />
 <Container>
 	<Title>Create a New Project</Title>
-	<Group grow>
-		<Stack>
-			<Card title="Starter Project">
-				<Text>Create a barebones starter project with a simple index file and favicon.</Text>
-				<Button ripple variant="gradient" slot="actions" on:click={() => (creationMode = CreateProjectMode.CREATE)}>
-					<Code />
+	<SimpleGrid cols={2}>
+		<Card override={{ border: '1px solid $gray700' }}>
+			<Title order={2} override={{ marginTop: '0 !important' }}>Starter Project</Title>
+			<Text>Create a barebones starter project with a simple index file and favicon.</Text>
+			<Space h="lg" />
+			<Button ripple variant="gradient" on:click={() => (creationMode = CreateProjectMode.CREATE)}>
+				<Code />
+				<Space w="xs" />
+				Create
+			</Button>
+		</Card>
+		<Card override={{ border: '1px solid $gray700' }}>
+			<Title order={2} override={{ marginTop: '0 !important' }}>Upload Project</Title>
+			<Text>Create a project by uploading a ZIP file.</Text>
+			<Space h="lg" />
+			<Button ripple variant="gradient" on:click={() => (creationMode = CreateProjectMode.UPLOAD)}>
+				<Share2 />
+				<Space w="xs" />
+				Upload
+			</Button>
+		</Card>
+		<Card override={{ border: '1px solid $gray700' }}>
+			<Group position="apart">
+				<Title order={2} override={{ marginTop: '0 !important' }}>Import From GitHub</Title>
+				<Badge color="blue">WIP</Badge>
+			</Group>
+			<Text>
+				Import a project from a
+				<Anchor href="https://github.com" external>
+					<GithubLogo /> GitHub
+				</Anchor>
+				repository
+			</Text>
+			<Space h="lg" />
+			<Tooltip label="This feature is WIP!" withArrow arrowSize={3}>
+				<Button ripple variant="gradient" disabled>
+					<GithubLogo />
 					<Space w="xs" />
-					Create
+					Import
 				</Button>
-			</Card>
-			<Card title="Import From GitHub" badge="WIP">
-				<Text>
-					Import a project from a
-					<Anchor href="https://github.com" external>
-						<GithubLogo /> GitHub
-					</Anchor>
-					repository
-				</Text>
-				<Tooltip label="This feature is WIP!" slot="actions" withArrow arrowSize={3}>
-					<Button ripple variant="gradient" disabled>
-						<GithubLogo />
-						<Space w="xs" />
-						Import
-					</Button>
-				</Tooltip>
-			</Card>
-		</Stack>
-		<Stack>
-			<Card title="Upload Project">
-				<Text>Create a project by uploading a ZIP file.</Text>
-				<Button ripple variant="gradient" slot="actions" on:click={() => (creationMode = CreateProjectMode.UPLOAD)}>
-					<Share2 />
-					<Space w="xs" />
-					Upload
-				</Button>
-			</Card>
-			<Card title="Create From Template" badge="WIP">
-				<Text>Create a project using a starter template</Text>
-				<Tooltip label="This feature is WIP!" slot="actions" withArrow arrowSize={3}>
-					<Button ripple variant="gradient" disabled>Create</Button>
-				</Tooltip>
-			</Card>
-		</Stack>
-	</Group>
+			</Tooltip>
+		</Card>
+		<Card override={{ border: '1px solid $gray700' }}>
+			<Group position="apart">
+				<Title order={2} override={{ marginTop: '0 !important' }}>Create From Template</Title>
+				<Badge color="blue">WIP</Badge>
+			</Group>
+			<Text>Create a project using a starter template</Text>
+			<Space h="lg" />
+			<Tooltip label="This feature is WIP!" withArrow arrowSize={3}>
+				<Button ripple variant="gradient" disabled>Create</Button>
+			</Tooltip>
+		</Card>
+	</SimpleGrid>
 </Container>
 {#if creationMode !== null}
 	<Overlay zIndex={100} use={[_portal]} on:click={cancel} />
