@@ -9,7 +9,7 @@
 	import { VIEW_URL } from '$lib/env';
 	import { Client } from '$lib/http';
 	import { currentModel } from '$lib/stores';
-	import { _portal } from '$lib/utils';
+	import { _focus, _portal } from '$lib/utils';
 	import { AppShell, Button, Container, Group, Loader, Modal, Notification, Seo, SimpleGrid, Space, Stack, Text, TextInput } from '@svelteuidev/core';
 	import { AxiosError } from 'axios';
 	import { Check, ClipboardCopy, Cross2, Download, ExternalLink } from 'radix-icons-svelte';
@@ -54,20 +54,13 @@
 		menuX: number | null = null,
 		menuY: number | null = null,
 		menuType: 'file' | 'directory' | null = null,
-		appShell: AppShell;
+		appShell: AppShell,
+		contextPath: string | null = null,
+		renaming: boolean = false;
 
 	const SIDEBAR_WIDTH = 256 + 20 * 2;
 
 	onMount(async () => {
-		appShell.$$.root.addEventListener('click', () => {
-			if (showMenu) {
-				showMenu = false;
-				menuType = null;
-				menuX = null;
-				menuY = null;
-			}
-		});
-
 		try {
 			await buildEditor();
 		} catch (e: unknown) {
@@ -153,6 +146,21 @@
 		}
 	}
 
+	$: {
+		const appElem = appShell?.$$.root.children[0]?.children[0];
+
+		if (appElem) {
+			appElem.addEventListener('click', (evt) => {
+				if (showMenu) {
+					showMenu = false;
+					menuType = null;
+					menuX = null;
+					menuY = null;
+				}
+			});
+		}
+	}
+
 	function getModelDisplayName(model: FileModel): string {
 		return model.path.split('/').at(-1)!;
 	}
@@ -227,10 +235,60 @@
 		}
 	}
 
+	function resetContextMenu(): void {
+		menuType = null;
+		menuX = null;
+		menuY = null;
+		menuType = null;
+		contextPath = null;
+	}
+
+	function resetRename(): void {
+		renaming = false;
+		fileOrDirName = '';
+		resetContextMenu();
+	}
+
 	function showContextMenu(evt: ContextEvent): void {
 		[menuX, menuY] = evt.pos;
 		showMenu = true;
 		menuType = evt.type;
+		contextPath = evt.path;
+	}
+
+	async function deleteFile(): Promise<void> {
+		try {
+			await editor.delete(contextPath!, menuType!);
+		} catch (e) {
+			console.log(e);
+			if (e instanceof AxiosError) {
+				errorMessage = e.response?.data.message || null;
+			}
+		} finally {
+			resetContextMenu();
+		}
+	}
+
+	function startRename(): void {
+		renaming = true;
+		fileOrDirName = contextPath!.split('/').at(-1)!;
+	}
+
+	async function rename(): Promise<void> {
+		if (contextPath!.split('/').at(-1) !== fileOrDirName) {
+			try {
+				await editor.rename(contextPath!, fileOrDirName, menuType!);
+			} catch (e) {
+				console.log(e);
+				if (e instanceof AxiosError) {
+					errorMessage = e.response?.data.message || null;
+				}
+			} finally {
+				resetRename();
+			}
+		} else {
+			resetRename();
+		}
 	}
 </script>
 
@@ -322,7 +380,7 @@
 		{/if}
 	</slot>
 </AppShell>
-<Modal opened={!!createFileDirectory} centered size="full" onClose={resetCreationModal} on:close={resetCreationModal} title="New File">
+<Modal opened={!!createFileDirectory} centered size="full" on:close={resetCreationModal} title="New File">
 	{#if createFileMode === null}
 		<SimpleGrid cols={2}>
 			<Button ripple size="xl" on:click={() => (createFileMode = CreateFileMode.CREATE)}>Create New File</Button>
@@ -330,7 +388,7 @@
 			<Button ripple size="xl" on:click={() => (createFileMode = CreateFileMode.MULTI_UPLOAD)}>Upload Zipped Files</Button>
 		</SimpleGrid>
 	{:else if createFileMode === CreateFileMode.CREATE}
-		<TextInput placeholder="File Name" required autocomplete="off" label="File Name" bind:value={fileOrDirName} />
+		<TextInput placeholder="File Name" required use={[_focus]} autocomplete="off" label="File Name" bind:value={fileOrDirName} />
 		<Space h="md" />
 		<Button ripple on:click={() => createFile()}>Create File</Button>
 	{:else if createFileMode === CreateFileMode.UPLOAD}
@@ -339,19 +397,31 @@
 		<FileUpload on:upload={(evt) => multiCreateFile(evt.detail)} />
 	{/if}
 </Modal>
-<Modal opened={!!createDirDirectory} centered size="full" onClose={resetCreationModal} on:close={resetCreationModal} title="New Folder">
+<Modal opened={!!createDirDirectory} centered size="full" on:close={resetCreationModal} title="New Folder">
 	{#if createDirMode === null}
 		<SimpleGrid cols={2}>
 			<Button ripple size="xl" on:click={() => (createDirMode = CreateDirMode.CREATE)}>Create New Folder</Button>
 			<Button ripple size="xl" on:click={() => (createDirMode = CreateDirMode.UPLOAD)}>Upload Zipped Folder</Button>
 		</SimpleGrid>
 	{:else if createDirMode === CreateDirMode.CREATE}
-		<TextInput placeholder="Folder Name" required autocomplete="off" label="File Name" bind:value={fileOrDirName} />
+		<TextInput placeholder="Folder Name" required use={[_focus]} autocomplete="off" label="File Name" bind:value={fileOrDirName} />
 		<Space h="md" />
 		<Button ripple on:click={createDirectory}>Create Directory</Button>
 	{:else}
 		<FileUpload on:upload={(evt) => uploadDirectory(evt.detail)} />
 	{/if}
+</Modal>
+<Modal opened={renaming} centered size="full" title="Rename {menuType === 'directory' ? 'Folder' : 'File'}" on:close={resetRename}>
+	<TextInput
+		placeholder="{menuType === 'directory' ? 'Folder' : 'File'} Name"
+		required
+		use={[_focus]}
+		autocomplete="off"
+		label="{menuType === 'directory' ? 'Folder' : 'File'} Name"
+		bind:value={fileOrDirName}
+	/>
+	<Space h="md" />
+	<Button ripple on:click={rename}>Rename</Button>
 </Modal>
 {#if message}
 	<Notification
@@ -375,8 +445,8 @@
 		{errorMessage}
 	</Notification>
 {/if}
-{#if showMenu && menuType !== null && menuX !== null && menuY !== null}
-	<ContextMenu {menuX} {menuY} {menuType} />
+{#if showMenu && menuType !== null && menuX !== null && menuY !== null && contextPath !== null}
+	<ContextMenu {menuX} {menuY} {menuType} on:delete={deleteFile} on:rename={startRename} />
 {/if}
 
 <style>

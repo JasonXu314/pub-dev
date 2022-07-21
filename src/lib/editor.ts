@@ -206,6 +206,135 @@ export class Editor {
 		}
 	}
 
+	public async delete(path: string, type: 'file' | 'directory'): Promise<void> {
+		await this._client.delete(path, type);
+
+		if (type === 'file') {
+			const model = this.getModel(path);
+
+			this._models.delete(path);
+			model.model.dispose();
+
+			if (this._currentModel && this._currentModel.path === path) {
+				this.setModel(null);
+			}
+
+			if (this._openTabs.includes(model)) {
+				this._openTabs = this._openTabs.filter((m) => m !== model);
+
+				if (this._onOpenTabsChange) {
+					this._onOpenTabsChange([...this._openTabs]);
+				}
+			}
+		}
+
+		let dir = this._workspace!;
+		const [end, ...dirs] = path.split('/').reverse();
+
+		dirs.reverse().forEach((pathDir) => {
+			dir = dir.dirs.find((d) => d.name === pathDir)!;
+		});
+
+		if (type === 'file') {
+			dir.files = dir.files.filter((f) => f !== end);
+		} else {
+			const rmDir = dir.dirs.find((d) => d.name === end)!;
+			dir.dirs = dir.dirs.filter((d) => d.name !== end);
+
+			rmDir.files.forEach((f) => {
+				const fullPath = `${path}/${f}`,
+					model = this.getModel(fullPath);
+
+				this._models.delete(fullPath);
+				model.model.dispose();
+
+				if (this._currentModel && this._currentModel.path === fullPath) {
+					this.setModel(null);
+				}
+
+				if (this._openTabs.includes(model)) {
+					this._openTabs = this._openTabs.filter((m) => m !== model);
+
+					if (this._onOpenTabsChange) {
+						this._onOpenTabsChange([...this._openTabs]);
+					}
+				}
+			});
+		}
+
+		if (this._onWorkspaceChange) {
+			this._onWorkspaceChange({ ...this._workspace! });
+		}
+	}
+
+	public async rename(path: string, name: string, type: 'file' | 'directory'): Promise<void> {
+		await this._client.rename(path, name, type);
+
+		if (type === 'file') {
+			const model = this.getModel(path);
+			const oldMonacoModel = model.model;
+
+			model.path = `${path.split('/').slice(0, -1).join('/')}/${name}`;
+			model.model = this._monaco!.editor.createModel(oldMonacoModel.getValue(), undefined, this._monaco!.Uri.file(model.path));
+			oldMonacoModel.dispose();
+
+			this._models.delete(path);
+			this._models.set(model.path, model);
+
+			if (this._currentModel && this._currentModel.path === path) {
+				this.setModel(model);
+			}
+
+			if (this._openTabs.includes(model) && this._onOpenTabsChange) {
+				this._onOpenTabsChange([...this._openTabs]);
+			}
+		}
+
+		let dir = this._workspace!;
+		const [end, ...dirs] = path.split('/').reverse();
+
+		dirs.reverse().forEach((pathDir) => {
+			dir = dir.dirs.find((d) => d.name === pathDir)!;
+		});
+
+		if (type === 'file') {
+			dir.files = dir.files.filter((f) => f !== end);
+			dir.files.push(name);
+		} else {
+			const renameDir = dir.dirs.find((d) => d.name === end)!;
+			renameDir.name = name;
+
+			renameDir.files.forEach((f) => {
+				const fullPath = `${path}/${f}`,
+					model = this.getModel(fullPath),
+					oldMonacoModel = model.model;
+
+				model.path = `${path.split('/').slice(0, -1).join('/')}/${name}/${f}`;
+				model.model = this._monaco!.editor.createModel(oldMonacoModel.getValue(), undefined, this._monaco!.Uri.file(model.path));
+				oldMonacoModel.dispose();
+
+				this._models.delete(fullPath);
+				this._models.set(model.path, model);
+
+				if (this._currentModel && this._currentModel.path === fullPath) {
+					this.setModel(null);
+				}
+
+				if (this._openTabs.includes(model)) {
+					this._openTabs = this._openTabs.filter((m) => m !== model);
+
+					if (this._onOpenTabsChange) {
+						this._onOpenTabsChange([...this._openTabs]);
+					}
+				}
+			});
+		}
+
+		if (this._onWorkspaceChange) {
+			this._onWorkspaceChange({ ...this._workspace! });
+		}
+	}
+
 	public async createDirectory(dir: string, name: string): Promise<void>;
 	public async createDirectory(dir: string, file: File): Promise<void>;
 	public async createDirectory(dir: string, nameOrFile: string | File): Promise<void> {

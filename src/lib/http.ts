@@ -169,6 +169,14 @@ export class Client {
 		}
 	}
 
+	public async delete(path: string, type: 'file' | 'directory'): Promise<void> {
+		return this._axios.delete(`${BACKEND_URL}/workspace/${this._name}/${path}?type=${type}`);
+	}
+
+	public async rename(path: string, newName: string, type: 'file' | 'directory'): Promise<void> {
+		return this._axios.post(`${BACKEND_URL}/workspace/${this._name}/${path}`, { action: 'rename', type, newName });
+	}
+
 	public useToken(token: string): void {
 		this._token = token;
 	}
