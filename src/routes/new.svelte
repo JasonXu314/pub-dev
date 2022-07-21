@@ -1,7 +1,7 @@
 <script lang="ts">
 	import FileUpload from '$lib/components/FileUpload.svelte';
 	import { BACKEND_URL } from '$lib/env';
-	import { normalizeProjectName, _portal } from '$lib/utils';
+	import { normalizeProjectName, _focus, _portal } from '$lib/utils';
 	import {
 		Anchor,
 		Badge,
@@ -204,7 +204,7 @@
 				<Title>Create Starter Project</Title>
 				<Divider />
 				<Space h="lg" />
-				<TextInput placeholder="Project Name" required autocomplete="off" label="Project Name" bind:value={projectName} />
+				<TextInput placeholder="Project Name" required use={[_focus]} autocomplete="off" label="Project Name" bind:value={projectName} />
 				{#if normalizeProjectName(projectName) !== projectName}
 					<Space h="xs" />
 					<Text>Your project will be created as <ICode>{normalizeProjectName(projectName)}</ICode></Text>

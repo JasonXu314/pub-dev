@@ -1,8 +1,14 @@
-import { portal } from '@svelteuidev/composables';
+import { focus, portal } from '@svelteuidev/composables';
+import type { FocusableElement } from '@svelteuidev/composables/types/shared/actions/types';
 
 // svelteui portal is incorrectly typed, so create wrapper
 export function _portal(node: HTMLOrSVGElement, target: HTMLElement | string) {
 	return portal(node as HTMLElement, target);
+}
+
+// svelteui focus is incorrectly typed, so create wrapper
+export function _focus(node: HTMLOrSVGElement) {
+	return focus(node as FocusableElement);
 }
 
 export function normalizeProjectName(name: string) {
