@@ -9,8 +9,8 @@
 	import { VIEW_URL } from '$lib/env';
 	import { Client } from '$lib/http';
 	import { currentModel } from '$lib/stores';
-	import { _focus, _portal } from '$lib/utils';
-	import { AppShell, Button, Container, Group, Loader, Modal, Notification, Seo, SimpleGrid, Space, Stack, Text, TextInput } from '@svelteuidev/core';
+	import { normalizeName, _focus, _portal } from '$lib/utils';
+	import { AppShell, Button, Code, Container, Group, Loader, Modal, Notification, Seo, SimpleGrid, Space, Stack, Text, TextInput } from '@svelteuidev/core';
 	import { AxiosError } from 'axios';
 	import { Check, ClipboardCopy, Cross2, Download, ExternalLink } from 'radix-icons-svelte';
 	import { onMount, tick } from 'svelte';
@@ -388,7 +388,16 @@
 			<Button ripple size="xl" on:click={() => (createFileMode = CreateFileMode.MULTI_UPLOAD)}>Upload Zipped Files</Button>
 		</SimpleGrid>
 	{:else if createFileMode === CreateFileMode.CREATE}
+		{@const isRoute = createFileDirectory?.startsWith('routes/')}
+		{@const normalizedName = normalizeName(fileOrDirName)}
 		<TextInput placeholder="File Name" required use={[_focus]} autocomplete="off" label="File Name" bind:value={fileOrDirName} />
+		{#if fileOrDirName.includes('/')}
+			<Space h="xs" />
+			<Text color="red">Your file should not be nested inside a folder. In order to create nested files, create the folder first!</Text>
+		{:else if isRoute && normalizedName !== fileOrDirName}
+			<Space h="xs" />
+			<Text>Your file will be created as <Code>{normalizeName(fileOrDirName)}</Code></Text>
+		{/if}
 		<Space h="md" />
 		<Button ripple on:click={() => createFile()}>Create File</Button>
 	{:else if createFileMode === CreateFileMode.UPLOAD}
@@ -404,7 +413,16 @@
 			<Button ripple size="xl" on:click={() => (createDirMode = CreateDirMode.UPLOAD)}>Upload Zipped Folder</Button>
 		</SimpleGrid>
 	{:else if createDirMode === CreateDirMode.CREATE}
+		{@const isRoute = createDirDirectory?.startsWith('routes/')}
+		{@const normalizedName = normalizeName(fileOrDirName)}
 		<TextInput placeholder="Folder Name" required use={[_focus]} autocomplete="off" label="File Name" bind:value={fileOrDirName} />
+		{#if fileOrDirName.includes('/')}
+			<Space h="xs" />
+			<Text color="red">Your folder should not be nested inside a folder. In order to create nested folders, create the parent folder first!</Text>
+		{:else if isRoute && normalizedName !== fileOrDirName}
+			<Space h="xs" />
+			<Text>Your folder will be created as <Code>{normalizeName(fileOrDirName)}</Code></Text>
+		{/if}
 		<Space h="md" />
 		<Button ripple on:click={createDirectory}>Create Directory</Button>
 	{:else}

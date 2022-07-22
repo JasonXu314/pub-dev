@@ -1,7 +1,7 @@
 <script lang="ts">
 	import FileUpload from '$lib/components/FileUpload.svelte';
 	import { BACKEND_URL } from '$lib/env';
-	import { normalizeProjectName, _focus, _portal } from '$lib/utils';
+	import { normalizeName, _focus, _portal } from '$lib/utils';
 	import {
 		Anchor,
 		Badge,
@@ -58,7 +58,7 @@
 		error = null;
 
 		try {
-			newWorkspace = await axios.post<Workspace>(`${BACKEND_URL}/workspace/${normalizeProjectName(projectName)}`).then((res) => res.data);
+			newWorkspace = await axios.post<Workspace>(`${BACKEND_URL}/workspace/${normalizeName(projectName)}`).then((res) => res.data);
 		} catch (err) {
 			if (err instanceof AxiosError) {
 				error = err.response?.data.message || 'An unknown server error occured';
@@ -205,9 +205,9 @@
 				<Divider />
 				<Space h="lg" />
 				<TextInput placeholder="Project Name" required use={[_focus]} autocomplete="off" label="Project Name" bind:value={projectName} />
-				{#if normalizeProjectName(projectName) !== projectName}
+				{#if normalizeName(projectName) !== projectName}
 					<Space h="xs" />
-					<Text>Your project will be created as <ICode>{normalizeProjectName(projectName)}</ICode></Text>
+					<Text>Your project will be created as <ICode>{normalizeName(projectName)}</ICode></Text>
 				{/if}
 				<Space h="md" />
 				<Button ripple loading={creating} disabled={creating} on:click={() => create()}>Create Project</Button>
