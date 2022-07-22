@@ -11,7 +11,7 @@ export function _focus(node: HTMLOrSVGElement) {
 	return focus(node as FocusableElement);
 }
 
-export function normalizeProjectName(name: string) {
+export function normalizeName(name: string) {
 	return name.replace(/\s+/g, '-').toLowerCase();
 }
 

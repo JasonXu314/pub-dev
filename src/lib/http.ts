@@ -1,6 +1,7 @@
 import axios, { Axios } from 'axios';
 import JSZip from 'jszip';
 import { BACKEND_URL } from './env';
+import { normalizeName } from './utils';
 
 // TODO: this implementation relies on `getWorkspace` being called before anything else, refactor to make call in constructor
 export class Client {
@@ -41,7 +42,11 @@ export class Client {
 	}
 
 	public async touch(dir: string, name: string, file?: File): Promise<NewFile> {
-		const path = `${dir}/${name}`;
+		if (name.includes('/')) {
+			throw new Error('Your folder should not be nested inside a folder. In order to create nested folders, create the parent folder first!');
+		}
+
+		const path = `${dir}/${dir.startsWith('routes/') ? normalizeName(name) : name}`;
 
 		if (file) {
 			const data = new FormData();
@@ -68,11 +73,13 @@ export class Client {
 		if (Array.isArray(fileOrFiles)) {
 			const newFiles: NewFile[] = await Promise.all(
 				fileOrFiles.map(async (file) => {
-					zip.file(file.name, file);
+					const name = dir.startsWith('routes/') ? normalizeName(file.name) : file.name;
+
+					zip.file(name, file);
 
 					return {
-						name: file.name,
-						path: `${dir}/${file.name}`,
+						name,
+						path: `${dir}/${name}`,
 						content: await file.text()
 					};
 				})
@@ -86,29 +93,44 @@ export class Client {
 		} else {
 			await zip.loadAsync(fileOrFiles);
 
-			if (Object.keys(zip.files).some((file) => file.includes('/'))) {
-				throw new Error('ZIP file should not contain folders; to upload a folder create a new folder and select the "Upload Zipped Folder" option');
-			} else {
-				data.append('files', fileOrFiles, 'files.zip');
+			const newZip = new JSZip();
 
-				await this._axios.post(`${BACKEND_URL}/upload-files/${this._name}/${dir}`, data);
+			await Promise.all(
+				Object.entries(zip.files).map(([file, data]) => {
+					if (file.includes('/')) {
+						throw new Error(
+							'ZIP file should not contain folders; to upload a folder create a new folder and select the "Upload Zipped Folder" option'
+						);
+					} else {
+						newZip.file(dir.startsWith('routes/') ? normalizeName(file) : file, data.async('string'));
+					}
+				})
+			);
 
-				return Promise.all(
-					Object.keys(zip.files).map(async (file) => {
-						return {
-							name: file,
-							path: `${dir}/${file}`,
-							content: await zip.files[file].async('text')
-						};
-					})
-				);
-			}
+			data.append('files', await newZip.generateAsync({ type: 'blob' }), 'files.zip');
+
+			await this._axios.post(`${BACKEND_URL}/upload-files/${this._name}/${dir}`, data);
+
+			return Promise.all(
+				Object.keys(newZip.files).map(async (file) => {
+					return {
+						name: file,
+						path: `${dir}/${file}`,
+						content: await zip.files[file].async('text')
+					};
+				})
+			);
 		}
 	}
 
 	public async mkdir(dir: string, nameOrFile: string | File): Promise<Directory> {
 		if (typeof nameOrFile === 'string') {
-			const name = nameOrFile;
+			const name = dir.startsWith('routes/') ? normalizeName(nameOrFile) : nameOrFile;
+
+			if (name.includes('/')) {
+				throw new Error('Your folder should not be nested inside a folder. In order to create nested folders, create the parent folder first!');
+			}
+
 			const path = `${dir}/${name}`;
 
 			await this._axios.post(`${BACKEND_URL}/workspace/${this._name}/${path}`, { type: 'directory' });
@@ -119,53 +141,111 @@ export class Client {
 				files: []
 			};
 		} else {
-			const file = nameOrFile,
-				name = file.name.split('.').slice(0, -1).join('.'),
-				path = `${dir}/${name}`;
+			const file = nameOrFile;
 
-			const data = new FormData();
-			data.append('type', 'directory');
-			data.append('file', file, name);
+			if (dir.startsWith('routes/')) {
+				const name = normalizeName(file.name.split('.').slice(0, -1).join('.')),
+					path = `${dir}/${name}`;
 
-			await this._axios.post(`${BACKEND_URL}/workspace/${this._name}/${path}`, data);
+				const data = new FormData();
+				data.append('type', 'directory');
 
-			const zip = new JSZip();
-			await zip.loadAsync(file);
+				const zip = new JSZip(),
+					newZip = new JSZip();
+				await zip.loadAsync(file);
 
-			const directory: Directory = {
-				name,
-				dirs: [],
-				files: []
-			};
+				const directory: Directory = {
+					name,
+					dirs: [],
+					files: []
+				};
 
-			Object.keys(zip.files)
-				.filter((key) => !zip.files[key].dir)
-				.forEach(async (file) => {
-					let dir = directory;
+				await Promise.all(
+					Object.entries(zip.files)
+						.filter(([, obj]) => !obj.dir)
+						.map(([path, data]) => {
+							newZip.file(normalizeName(path), data.async('string'));
 
-					file.split('/')
-						.slice(0, -1)
-						.forEach((part) => {
-							const subdir = dir.dirs.find((d) => d.name === part);
+							let dir = directory;
 
-							if (subdir) {
-								dir = subdir;
-							} else {
-								const newDir = {
-									name: part,
-									dirs: [],
-									files: []
-								};
+							path.split('/')
+								.slice(0, -1)
+								.forEach((part) => {
+									const subdir = dir.dirs.find((d) => d.name === part);
 
-								dir.dirs.push(newDir);
-								dir = newDir;
-							}
-						});
+									if (subdir) {
+										dir = subdir;
+									} else {
+										const newDir = {
+											name: part,
+											dirs: [],
+											files: []
+										};
 
-					dir.files.push(file.split('/').pop()!);
-				});
+										dir.dirs.push(newDir);
+										dir = newDir;
+									}
+								});
 
-			return directory;
+							dir.files.push(path.split('/').pop()!);
+						})
+				);
+
+				data.append('file', await newZip.generateAsync({ type: 'blob' }), name);
+
+				await this._axios.post(`${BACKEND_URL}/workspace/${this._name}/${path}`, data);
+
+				return directory;
+			} else {
+				const name = file.name.split('.').slice(0, -1).join('.'),
+					path = `${dir}/${name}`;
+
+				const data = new FormData();
+				data.append('type', 'directory');
+				data.append('file', file, name);
+
+				await this._axios.post(`${BACKEND_URL}/workspace/${this._name}/${path}`, data);
+
+				const zip = new JSZip();
+				await zip.loadAsync(file);
+
+				const directory: Directory = {
+					name,
+					dirs: [],
+					files: []
+				};
+
+				await Promise.all(
+					Object.keys(zip.files)
+						.filter((key) => !zip.files[key].dir)
+						.map(async (file) => {
+							let dir = directory;
+
+							file.split('/')
+								.slice(0, -1)
+								.forEach((part) => {
+									const subdir = dir.dirs.find((d) => d.name === part);
+
+									if (subdir) {
+										dir = subdir;
+									} else {
+										const newDir = {
+											name: part,
+											dirs: [],
+											files: []
+										};
+
+										dir.dirs.push(newDir);
+										dir = newDir;
+									}
+								});
+
+							dir.files.push(file.split('/').pop()!);
+						})
+				);
+
+				return directory;
+			}
 		}
 	}
 
