@@ -399,7 +399,7 @@
 			<Text>Your file will be created as <Code>{normalizeName(fileOrDirName)}</Code></Text>
 		{/if}
 		<Space h="md" />
-		<Button ripple on:click={() => createFile()}>Create File</Button>
+		<Button disabled={fileOrDirName.includes('/')} ripple on:click={() => createFile()}>Create File</Button>
 	{:else if createFileMode === CreateFileMode.UPLOAD}
 		<FileUpload multiple on:upload={handleFileUpload} />
 	{:else}
@@ -424,7 +424,7 @@
 			<Text>Your folder will be created as <Code>{normalizeName(fileOrDirName)}</Code></Text>
 		{/if}
 		<Space h="md" />
-		<Button ripple on:click={createDirectory}>Create Directory</Button>
+		<Button disabled={fileOrDirName.includes('/')} ripple on:click={createDirectory}>Create Directory</Button>
 	{:else}
 		<FileUpload on:upload={(evt) => uploadDirectory(evt.detail)} />
 	{/if}
