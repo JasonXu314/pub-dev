@@ -61,6 +61,17 @@
 	const SIDEBAR_WIDTH = 256 + 20 * 2;
 
 	onMount(async () => {
+		const appElem = appShell.$$.root.children[0].children[0];
+
+		appElem.addEventListener('click', () => {
+			if (showMenu) {
+				showMenu = false;
+				menuType = null;
+				menuX = null;
+				menuY = null;
+			}
+		});
+
 		try {
 			await buildEditor();
 		} catch (e: unknown) {
@@ -143,21 +154,6 @@
 			} else {
 				currentFileViewPath = path.replace('public/', '');
 			}
-		}
-	}
-
-	$: {
-		const appElem = appShell?.$$.root.children[0]?.children[0];
-
-		if (appElem) {
-			appElem.addEventListener('click', (evt) => {
-				if (showMenu) {
-					showMenu = false;
-					menuType = null;
-					menuX = null;
-					menuY = null;
-				}
-			});
 		}
 	}
 
