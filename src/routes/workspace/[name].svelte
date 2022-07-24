@@ -519,7 +519,14 @@
 		<Text>Would you like to take a tutorial on how to use PubDev?</Text>
 		<Space h="md" />
 		<Group>
-			<Button ripple variant="white" on:click={() => (firstTime = false)}>No, thanks</Button>
+			<Button
+				ripple
+				variant="white"
+				on:click={() => {
+					firstTime = false;
+					starterStoryPhase = StarterStoryPhase.COMPLETED;
+				}}>No, thanks</Button
+			>
 			<Button
 				ripple
 				color="blue"
