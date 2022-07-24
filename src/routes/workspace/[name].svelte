@@ -5,11 +5,12 @@
 	import EditorTab from '$lib/components/EditorTab.svelte';
 	import FileElement from '$lib/components/FileElement.svelte';
 	import FileUpload from '$lib/components/FileUpload.svelte';
+	import StarterStory from '$lib/components/StarterStory.svelte';
 	import { Editor } from '$lib/editor';
 	import { VIEW_URL } from '$lib/env';
 	import { Client } from '$lib/http';
 	import { currentModel } from '$lib/stores';
-	import { normalizeName, _focus, _portal } from '$lib/utils';
+	import { normalizeName, StarterStoryPhase, _focus, _portal } from '$lib/utils';
 	import { AppShell, Button, Code, Container, Group, Loader, Modal, Notification, Seo, SimpleGrid, Space, Stack, Text, TextInput } from '@svelteuidev/core';
 	import { AxiosError } from 'axios';
 	import { Check, ClipboardCopy, Cross2, Download, ExternalLink } from 'radix-icons-svelte';
@@ -56,7 +57,14 @@
 		menuType: 'file' | 'directory' | null = null,
 		appShell: AppShell,
 		contextPath: string | null = null,
-		renaming: boolean = false;
+		renaming: boolean = false,
+		firstTime: boolean = false,
+		starterStoryPhase: StarterStoryPhase | null = null,
+		fsDiv: HTMLDivElement,
+		viewPageButton: HTMLButtonElement,
+		fsStack: HTMLElement,
+		createFileButton: HTMLButtonElement,
+		createButton: HTMLButtonElement;
 
 	const SIDEBAR_WIDTH = 256 + 20 * 2;
 
@@ -71,6 +79,10 @@
 				menuY = null;
 			}
 		});
+
+		const lsStarterStory = localStorage.getItem('pub-dev:starterStory');
+		firstTime = lsStarterStory === null;
+		starterStoryPhase = lsStarterStory !== null ? parseInt(lsStarterStory) : null;
 
 		try {
 			await buildEditor();
@@ -114,7 +126,16 @@
 		state = State.WORKING;
 
 		editor
-			.onSave(() => (message = 'Saved!'))
+			.onSave(() => {
+				message = 'Saved!';
+
+				if (starterStoryPhase === StarterStoryPhase.EDIT_PAGE) {
+					starterStoryPhase = StarterStoryPhase.VIEW_PAGE;
+				}
+				if (starterStoryPhase === StarterStoryPhase.POPULATE_PAGE) {
+					starterStoryPhase = StarterStoryPhase.VIEW_NEW_PAGE;
+				}
+			})
 			.onWorkspaceChange((ws) => (workspace = ws))
 			.onOpenTabsChange((tabs) => (tabModels = tabs));
 	}
@@ -154,6 +175,12 @@
 			} else {
 				currentFileViewPath = path.replace('public/', '');
 			}
+		}
+	}
+
+	$: {
+		if (starterStoryPhase !== null) {
+			localStorage.setItem('pub-dev:starterStory', starterStoryPhase.toString());
 		}
 	}
 
@@ -305,6 +332,12 @@
 					href="{VIEW_URL.replace('__NAME__', workspaceName)}/{currentFileViewPath}"
 					external
 					disabled={!$currentModel || $currentModel.model.getLanguageId() !== 'html'}
+					bind:element={viewPageButton}
+					on:click={starterStoryPhase === StarterStoryPhase.VIEW_PAGE
+						? () => (starterStoryPhase = StarterStoryPhase.CREATE_PAGE)
+						: starterStoryPhase === StarterStoryPhase.VIEW_NEW_PAGE
+						? () => (starterStoryPhase = StarterStoryPhase.TUTORIALS)
+						: () => {}}
 				>
 					Visit Page
 					<ExternalLink slot="leftIcon" />
@@ -317,7 +350,7 @@
 			</Group>
 		{/if}
 	</Group>
-	<Stack justify="start" spacing={0} override={{ width: SIDEBAR_WIDTH, paddingTop: '$xsPX' }} slot="navbar">
+	<Stack justify="start" spacing={0} override={{ width: SIDEBAR_WIDTH, paddingTop: '$xsPX' }} slot="navbar" bind:element={fsStack}>
 		{#if state === State.WORKING}
 			<Button compact on:click={() => editor.download()} override={{ marginLeft: '$smPX', marginRight: '$smPX' }}>
 				Export Project to ZIP
@@ -329,8 +362,24 @@
 						{directory}
 						prevPath=""
 						getModel={(name) => editor.getModel(name)}
-						setModel={(model) => editor.setModel(model)}
-						on:create-file={(evt) => (createFileDirectory = evt.detail)}
+						setModel={starterStoryPhase === StarterStoryPhase.SHOW_FILESYSTEM
+							? (model) => {
+									editor.setModel(model);
+
+									if (model.path === 'routes/index.html') {
+										starterStoryPhase = StarterStoryPhase.EDIT_PAGE;
+									}
+							  }
+							: (model) => editor.setModel(model)}
+						on:create-file={starterStoryPhase === StarterStoryPhase.CREATE_PAGE
+							? (evt) => {
+									createFileDirectory = evt.detail;
+
+									if (createFileDirectory.startsWith('routes')) {
+										starterStoryPhase = StarterStoryPhase.SELECT_CREATION;
+									}
+							  }
+							: (evt) => (createFileDirectory = evt.detail)}
 						on:create-dir={(evt) => (createDirDirectory = evt.detail)}
 						on:context={(evt) => showContextMenu(evt.detail)}
 					/>
@@ -341,10 +390,13 @@
 					<FileElement
 						{file}
 						model={editor.getModel(file)}
-						on:click={(model) => editor.setModel(model.detail)}
+						on:click={(evt) => editor.setModel(evt.detail)}
 						on:context={(evt) => showContextMenu(evt.detail)}
 					/>
 				{/each}
+			{/if}
+			{#if starterStoryPhase === StarterStoryPhase.SHOW_FILESYSTEM || starterStoryPhase === StarterStoryPhase.EDIT_PAGE}
+				<div bind:this={fsDiv} />
 			{/if}
 		{/if}
 	</Stack>
@@ -378,11 +430,23 @@
 </AppShell>
 <Modal opened={!!createFileDirectory} centered size="full" on:close={resetCreationModal} title="New File">
 	{#if createFileMode === null}
-		<SimpleGrid cols={2}>
-			<Button ripple size="xl" on:click={() => (createFileMode = CreateFileMode.CREATE)}>Create New File</Button>
+		<Stack>
+			<Button
+				ripple
+				size="xl"
+				bind:element={createFileButton}
+				on:click={starterStoryPhase === StarterStoryPhase.SELECT_CREATION
+					? () => {
+							createFileMode = CreateFileMode.CREATE;
+							starterStoryPhase = StarterStoryPhase.NAME_FILE;
+					  }
+					: () => (createFileMode = CreateFileMode.CREATE)}
+			>
+				Create New File
+			</Button>
 			<Button ripple size="xl" on:click={() => (createFileMode = CreateFileMode.UPLOAD)}>Upload File(s)</Button>
 			<Button ripple size="xl" on:click={() => (createFileMode = CreateFileMode.MULTI_UPLOAD)}>Upload Zipped Files</Button>
-		</SimpleGrid>
+		</Stack>
 	{:else if createFileMode === CreateFileMode.CREATE}
 		{@const isRoute = createFileDirectory?.startsWith('routes/')}
 		{@const normalizedName = normalizeName(fileOrDirName)}
@@ -395,7 +459,20 @@
 			<Text>Your file will be created as <Code>{normalizeName(fileOrDirName)}</Code></Text>
 		{/if}
 		<Space h="md" />
-		<Button disabled={fileOrDirName.includes('/')} ripple on:click={() => createFile()}>Create File</Button>
+		<Button
+			disabled={fileOrDirName.includes('/')}
+			ripple
+			on:click={starterStoryPhase === StarterStoryPhase.NAME_FILE
+				? () => {
+						const fileName = fileOrDirName;
+						createFile().then(() => {
+							editor.setModel(editor.getModel(`routes/${fileName}`));
+							starterStoryPhase = StarterStoryPhase.POPULATE_PAGE;
+						});
+				  }
+				: () => createFile()}
+			bind:element={createButton}>Create File</Button
+		>
 	{:else if createFileMode === CreateFileMode.UPLOAD}
 		<FileUpload multiple on:upload={handleFileUpload} />
 	{:else}
@@ -437,6 +514,23 @@
 	<Space h="md" />
 	<Button ripple on:click={rename}>Rename</Button>
 </Modal>
+{#if firstTime}
+	<Modal opened={firstTime} size="full" title="Looks like it's your first time here!" on:close={() => (firstTime = false)}>
+		<Text>Would you like to take a tutorial on how to use PubDev?</Text>
+		<Space h="md" />
+		<Group>
+			<Button ripple variant="white" on:click={() => (firstTime = false)}>No, thanks</Button>
+			<Button
+				ripple
+				color="blue"
+				on:click={() => {
+					firstTime = false;
+					starterStoryPhase = StarterStoryPhase.SHOW_FILESYSTEM;
+				}}>Yes!</Button
+			>
+		</Group>
+	</Modal>
+{/if}
 {#if message}
 	<Notification
 		color="green"
@@ -462,10 +556,19 @@
 {#if showMenu && menuType !== null && menuX !== null && menuY !== null && contextPath !== null}
 	<ContextMenu {menuX} {menuY} {menuType} on:delete={deleteFile} on:rename={startRename} />
 {/if}
+{#if starterStoryPhase !== null && starterStoryPhase !== StarterStoryPhase.COMPLETED}
+	{#key workspace}
+		<StarterStory bind:phase={starterStoryPhase} {fsDiv} {viewPageButton} {fsStack} {createFileButton} {createButton} />
+	{/key}
+{/if}
 
 <style>
 	#container {
 		height: 97vh;
+	}
+
+	:global(.story-arrow) {
+		background: white !important;
 	}
 
 	/* 

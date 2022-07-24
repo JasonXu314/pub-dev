@@ -1,6 +1,19 @@
 import { focus, portal } from '@svelteuidev/composables';
 import type { FocusableElement } from '@svelteuidev/composables/types/shared/actions/types';
 
+export enum StarterStoryPhase {
+	SHOW_FILESYSTEM,
+	EDIT_PAGE,
+	VIEW_PAGE,
+	CREATE_PAGE,
+	SELECT_CREATION,
+	NAME_FILE,
+	POPULATE_PAGE,
+	VIEW_NEW_PAGE,
+	TUTORIALS,
+	COMPLETED
+}
+
 // svelteui portal is incorrectly typed, so create wrapper
 export function _portal(node: HTMLOrSVGElement, target: HTMLElement | string) {
 	return portal(node as HTMLElement, target);
