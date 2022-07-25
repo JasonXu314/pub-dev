@@ -14,7 +14,7 @@
 	import { AppShell, Button, Code, Container, Group, Loader, Modal, Notification, Seo, SimpleGrid, Space, Stack, Text, TextInput } from '@svelteuidev/core';
 	import { AxiosError } from 'axios';
 	import { Check, ClipboardCopy, Cross2, Download, ExternalLink } from 'radix-icons-svelte';
-	import { onMount, tick } from 'svelte';
+	import { onDestroy, onMount, tick } from 'svelte';
 
 	enum State {
 		LOADING,
@@ -101,6 +101,10 @@
 				error = e;
 			}
 		}
+	});
+
+	onDestroy(() => {
+		editor.dispose();
 	});
 
 	async function buildEditor(): Promise<void> {

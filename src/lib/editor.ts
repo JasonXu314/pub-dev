@@ -104,6 +104,11 @@ export class Editor {
 		});
 	}
 
+	public dispose(): void {
+		this._editor?.dispose();
+		this._models.forEach((model) => model.model.dispose());
+	}
+
 	public setModel(model: FileModel | null) {
 		if (this._editor) {
 			if (model) {
