@@ -1,6 +1,8 @@
 import { focus, portal } from '@svelteuidev/composables';
 import type { FocusableElement } from '@svelteuidev/composables/types/shared/actions/types';
 
+export const END_SCRIPT = '</script>';
+
 export enum StarterStoryPhase {
 	SHOW_FILESYSTEM,
 	EDIT_PAGE,
@@ -56,4 +58,8 @@ export function getMIMEType(file: string): string {
 	} else {
 		return 'application/octet-stream';
 	}
+}
+
+export function makeHTMLSafe(html: string) {
+	return html.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
