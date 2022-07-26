@@ -582,6 +582,10 @@
 		background: white !important;
 	}
 
+	:global(.monaco-aria-container) {
+		display: none;
+	}
+
 	/* 
 	:global(*) {
 		outline: 1px solid lime !important;
