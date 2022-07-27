@@ -1,8 +1,10 @@
-<script>
+<script lang="ts">
 	import { makeHTMLSafe } from '$lib/utils';
 	import alert from '@iconify/icons-mdi/alert-circle-outline';
 	import Icon from '@iconify/svelte';
 	import { Alert, Anchor, Button, Code, Group, Image, Space, Text, Title } from '@svelteuidev/core';
+	import { ArrowRight } from 'radix-icons-svelte';
+	import { onMount, tick } from 'svelte';
 
 	let formCode = makeHTMLSafe(`<form id="form">
 	<label for="todo-name">Name:</label>
@@ -65,6 +67,12 @@ let todos = []; // create an empty array (this will store the todos that we have
 	nameInput.value = '';
 	descriptionInput.value = '';
 });`);
+
+	onMount(() => {
+		tick().then(() => {
+			(window as any).Prism.highlightAllUnder(document.body);
+		});
+	});
 </script>
 
 <Title>Todo App</Title>
@@ -86,7 +94,7 @@ let todos = []; // create an empty array (this will store the todos that we have
 
 <Title order={2}>HTML</Title>
 <Text>Begin by creating a form like so:</Text>
-<pre>{@html formCode}</pre>
+<pre><code class="language-html">{@html formCode}</code></pre>
 <Alert color="blue" title="Important!" icon={Icon} iconProps={{ icon: alert }}>
 	Make sure to put this in the <Code>{'<body>'}</Code> tag of your page
 </Alert>
@@ -100,24 +108,24 @@ let todos = []; // create an empty array (this will store the todos that we have
 />
 <Space h="lg" />
 <Text>Below the form, create an unordered list. This will be where we put the todos.</Text>
-<pre>{'<ul id="todos"></ul>'}</pre>
+<pre><code class="language-html">{'<ul id="todos"></ul>'}</code></pre>
 
 <Title order={2}>JS</Title>
 <Text>First, let's set up some variables; make a <Code>script</Code> tag in the <Code>body</Code> and insert the following:</Text>
-<pre>{@html initCode}</pre>
+<pre><code class="language-javascript">{@html initCode}</code></pre>
 <Alert color="blue" icon={Icon} iconProps={{ icon: alert }}>
 	The comments are here to explain what each line of code is doing, and are obviously not necessary.
 </Alert>
 <Space h="lg" />
 <Text>Now we need to actually build the HTML elements for each todo:</Text>
-<pre>{@html buildTodoCode}</pre>
+<pre><code class="language-javascript">{@html buildTodoCode}</code></pre>
 <Alert color="blue" icon={Icon} iconProps={{ icon: alert }}>
 	The <Code>rebuildList</Code> function is where we'll add the todos to the list (and is just below!).
 </Alert>
-<pre>{@html addTodoCode}</pre>
+<pre><code class="language-javascript">{@html addTodoCode}</code></pre>
 <Text>Now to call these functions whenever the user clicks the submit button:</Text>
-<pre>{@html submitCode}</pre>
-<Title order={3}>And, we're done!</Title>
+<pre><code class="language-javascript">{@html submitCode}</code></pre>
+<Title order={2}>And, we're done!</Title>
 <Text>We now have a website where we can create todos and mark them as completed/uncompleted.</Text>
 <Text>Deleting todos and making the website pretty is left as an exercise to the reader.</Text>
 <Space h="lg" />
@@ -132,5 +140,6 @@ let todos = []; // create an empty array (this will store the todos that we have
 	<Group align="center">
 		<Title color="white" override={{ margin: '0 !important' }}>Next:</Title>
 		<Title order={3} color="white" override={{ margin: '0.25em 0 0 !important' }}>Persisting your data</Title>
+		<ArrowRight size={32} />
 	</Group>
 </Button>
