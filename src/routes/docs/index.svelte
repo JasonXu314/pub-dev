@@ -18,8 +18,8 @@
 <ul>
 	<li><Anchor href="/docs/routing">Filesystem-based routing</Anchor></li>
 	<ul>
-		<li>HTML web pages</li>
-		<li>JS API endpoints</li>
+		<li><Anchor href="/docs/pages">HTML web pages</Anchor></li>
+		<li><Anchor href="/docs/api-routes">JS API endpoints</Anchor></li>
 	</ul>
 	<li>Static asset hosting</li>
 	<li>SQL + NoSQL databases</li>
