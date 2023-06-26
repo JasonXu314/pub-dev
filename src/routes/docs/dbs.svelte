@@ -26,17 +26,10 @@
 	});
 </script>
 
-<Title>API Routes</Title>
+<Title>Databases</Title>
 <Text>
-	PubDev attempts to interpret all JavaScript file under the <Code>routes</Code> folder as API endpoints. There are 2 types of endpoints: REST endpoints, and
-	WebSocket gateways.
-</Text>
-<Space h="sm" />
-<Text>
-	Both REST endpoints and WebSocket gateways are allowed to export <Code>setup</Code> and <Code>cleanup</Code> functions. The <Code>cleanup</Code> function will
-	be run immediately after changes to the endpoint are received, and should clean up any resources that were used in previous versions of the endpoint, such as
-	closing WebSockets and servers, or resetting databases. The <Code>setup</Code> function will be run immediately after the endpoint is loaded, and should be
-	used to perform any tasks that the endpoint depends on to run, such as setting up databases, or pre-populating data.
+	Databases are the primary way to preserve data between requests to an API, or share data between multiple API endpoints. PubDev makes database-like
+	functionality available to API endpoints via the <Code>db:nosql</Code> and <Code>db:sql</Code> modules.
 </Text>
 
 <Title order={2}>REST Endpoints</Title>

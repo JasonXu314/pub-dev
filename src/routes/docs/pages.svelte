@@ -17,4 +17,8 @@
 		</Text>
 	</li>
 </ul>
-<Text>HTML pages are prioritized over endpoints in the event of a name collision.</Text>
+<Text
+	>HTML pages are prioritized over endpoints in the event of a name collision. For example, if a directory had a <Code>data.html</Code> and a <Code
+		>data.js</Code
+	> file, a <Code>GET</Code> request would retrieve the HTML page, not the endpoint.</Text
+>

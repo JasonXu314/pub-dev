@@ -8,7 +8,9 @@
 			{
 				routing: 'Routing',
 				pages: 'Web Pages',
-				'api-routes': 'API Routes'
+				'api-routes': 'API Routes',
+				'static-assets': 'Static Asset Hosting',
+				dbs: 'Databases'
 			}
 		],
 		[
@@ -32,7 +34,7 @@
 </svelte:head>
 <Seo title={$page.url.pathname === '/docs' ? 'PubDev Docs' : `PubDev Docs | ${getPageName()}`} />
 <AppShell>
-	<Container slot="navbar" override={{ paddingTop: '$lgPX' }}>
+	<Container slot="navbar" override={{ paddingTop: 32 }} size="xl">
 		<Stack>
 			<Anchor href="/">
 				<Group align="center">

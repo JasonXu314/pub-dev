@@ -14,15 +14,15 @@
 	However, the main focus on raw HTML/JS for the frontend will remain.
 </Text>
 <Space h="sm" />
-<Text>We currently support the following features:</Text>
+<Text>Check out the docs pages for our features:</Text>
 <ul>
 	<li><Anchor href="/docs/routing">Filesystem-based routing</Anchor></li>
 	<ul>
 		<li><Anchor href="/docs/pages">HTML web pages</Anchor></li>
 		<li><Anchor href="/docs/api-routes">JS API endpoints</Anchor></li>
 	</ul>
-	<li>Static asset hosting</li>
-	<li>SQL + NoSQL databases</li>
+	<li><Anchor href="/docs/static-assets">Static asset hosting</Anchor></li>
+	<li><Anchor href="/docs/dbs">SQL + NoSQL databases</Anchor></li>
 	<li><Code>context</Code> API</li>
 	<li>WebSocket servers</li>
 </ul>
